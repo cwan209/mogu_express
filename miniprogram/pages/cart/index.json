@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "购物车",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "cart-stepper": "/components/cart-stepper/index",
+    "t-button": "tdesign-miniprogram/button/button"
+  }
+}

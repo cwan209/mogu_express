@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "团详情",
+  "usingComponents": {
+    "countdown": "/components/countdown/index",
+    "product-card": "/components/product-card/index"
+  }
+}

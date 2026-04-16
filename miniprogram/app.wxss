@@ -1,0 +1,42 @@
+/* app.wxss - 全局样式 */
+@import './style/theme.wxss';
+
+page {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+.container {
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.text-primary { color: var(--brand-color); }
+.text-muted   { color: var(--text-secondary); }
+.text-danger  { color: var(--error-color); }
+
+.price {
+  color: var(--brand-color);
+  font-weight: 600;
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 80rpx 0;
+  font-size: 26rpx;
+}

@@ -1,0 +1,75 @@
+<view class="container" wx:if="{{ready}}">
+  <!-- 收货地址 -->
+  <view class="address-card" bindtap="onPickAddress">
+    <block wx:if="{{address}}">
+      <view class="addr-head">
+        <text class="name">{{address.recipient}}</text>
+        <text class="phone">{{address.phone}}</text>
+        <text class="tag" wx:if="{{address.isDefault}}">默认</text>
+      </view>
+      <view class="addr-body">
+        {{address.line1}}{{address.line2 ? ', ' + address.line2 : ''}}, {{address.suburb}} {{address.state}} {{address.postcode}}
+      </view>
+    </block>
+    <view class="no-addr" wx:else>
+      <text>请添加收货地址</text>
+    </view>
+    <view class="arrow">›</view>
+  </view>
+
+  <!-- 用户信息(缺则提示完善) -->
+  <view class="user-card" wx:if="{{!userReady}}" bindtap="onGoRegister">
+    <text class="warn-tag">⚠</text>
+    <text>请先完善姓名与电话</text>
+    <text class="arrow">›</text>
+  </view>
+
+  <!-- 商品清单 -->
+  <view class="items-card">
+    <view class="card-title">商品清单({{items.length}})</view>
+    <view class="item" wx:for="{{items}}" wx:key="productId">
+      <image class="cover" src="{{item.product.coverFileId}}" mode="aspectFill" />
+      <view class="item-body">
+        <view class="t">{{item.product.title}}</view>
+        <view class="row">
+          <text class="p">A$ {{priceMap[item.productId]}}</text>
+          <text class="q">× {{item.quantity}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 备注 -->
+  <view class="remark-card">
+    <text class="label">备注</text>
+    <t-textarea
+      value="{{remark}}"
+      placeholder="选填:口味、规格、备注等"
+      maxcharacter="100"
+      indicator
+      bind:change="onRemarkChange"
+    />
+  </view>
+
+  <!-- 金额 -->
+  <view class="amount-card">
+    <view class="line"><text>商品总额</text><text>A$ {{totalText}}</text></view>
+    <view class="line"><text>运费</text><text>A$ 0.00</text></view>
+    <view class="line total"><text>实付</text><text class="big">A$ {{totalText}}</text></view>
+  </view>
+
+  <!-- 底栏 -->
+  <view class="bottom-bar">
+    <view class="total-label">实付</view>
+    <view class="total-big">A$ {{totalText}}</view>
+    <t-button
+      theme="primary"
+      size="large"
+      disabled="{{!userReady || !address || submitting}}"
+      loading="{{submitting}}"
+      bind:tap="onSubmit"
+    >{{ submitting ? '下单中...' : '提交订单' }}</t-button>
+  </view>
+</view>
+
+<view class="loading" wx:else>加载中...</view>

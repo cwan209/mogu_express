@@ -1,0 +1,10 @@
+{
+  "name": "mogu-express-miniprogram",
+  "version": "0.0.1",
+  "description": "mogu_express 接龙团购小程序 - 顾客端",
+  "private": true,
+  "dependencies": {
+    "tdesign-miniprogram": "^1.9.5",
+    "dayjs": "^1.11.10"
+  }
+}

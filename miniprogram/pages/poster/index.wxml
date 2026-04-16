@@ -1,0 +1,25 @@
+<view class="container">
+  <view class="canvas-wrap">
+    <canvas
+      type="2d"
+      id="poster"
+      class="poster-canvas"
+      style="width: {{cssW}}px; height: {{cssH}}px;"
+    ></canvas>
+
+    <view class="loading-mask" wx:if="{{drawing}}">
+      <text>{{drawingText}}</text>
+    </view>
+  </view>
+
+  <view class="actions">
+    <t-button
+      theme="primary"
+      block
+      bind:tap="onSave"
+      disabled="{{drawing || !imagePath}}"
+    >{{ saving ? '保存中...' : '保存到相册' }}</t-button>
+    <t-button theme="default" block bind:tap="onPreview" disabled="{{!imagePath}}">预览大图</t-button>
+    <view class="hint">长按图片可发送给好友 / 朋友圈</view>
+  </view>
+</view>

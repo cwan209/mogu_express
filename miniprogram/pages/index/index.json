@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "接龙团购",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "tuan-card": "/components/tuan-card/index"
+  }
+}

@@ -1,0 +1,62 @@
+<view class="container" wx:if="{{tuan}}">
+  <view class="tuan-hero">
+    <image class="cover" src="{{tuan.coverFileId}}" mode="aspectFill" />
+    <view class="tuan-body">
+      <view class="title">{{tuan.title}}</view>
+      <view class="status-row">
+        <view wx:if="{{tuan.status === 'on_sale'}}" class="tag tag-sale">进行中</view>
+        <view wx:elif="{{tuan.status === 'scheduled'}}" class="tag tag-scheduled">待开团</view>
+        <view wx:elif="{{tuan.status === 'closed'}}" class="tag tag-closed">已截团</view>
+        <countdown
+          wx:if="{{tuan.status === 'on_sale'}}"
+          target="{{tuan.endAt}}"
+          prefix="距截止"
+          mode="end"
+        />
+        <countdown
+          wx:elif="{{tuan.status === 'scheduled'}}"
+          target="{{tuan.startAt}}"
+          prefix="距开团"
+          mode="before"
+        />
+      </view>
+      <view class="desc" wx:if="{{tuan.description}}">{{tuan.description}}</view>
+      <view class="meta">
+        <text>开团 {{startAtText}}</text>
+        <text class="dot">·</text>
+        <text>截止 {{endAtText}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-title">
+    <text>团内商品</text>
+    <text class="count">{{products.length}} 件</text>
+  </view>
+
+  <view class="products">
+    <product-card
+      wx:for="{{products}}"
+      wx:key="_id"
+      product="{{item}}"
+      available="{{tuan.status === 'on_sale'}}"
+    />
+  </view>
+
+  <view class="bottom-spacer"></view>
+
+  <!-- 底栏:分享 + 海报 -->
+  <view class="bottom-bar">
+    <button class="share-btn" open-type="share" hover-class="none" plain="true">
+      <text class="i-ico">⇪</text>
+      <text class="i-text">转发好友/群</text>
+    </button>
+    <view class="poster-btn" bindtap="onPoster">
+      <text class="i-ico">🖼</text>
+      <text class="i-text">生成海报</text>
+    </view>
+  </view>
+</view>
+
+<view class="loading-mask" wx:elif="{{loading}}">加载中...</view>
+<view class="empty" wx:else>团不存在或已删除</view>

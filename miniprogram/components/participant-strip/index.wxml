@@ -1,0 +1,19 @@
+<view class="ps" wx:if="{{total > 0}}">
+  <view class="ps-head">
+    <text class="ps-title">已有 {{total}} 人接龙</text>
+  </view>
+  <view class="ps-list">
+    <view class="ps-item" wx:for="{{participants}}" wx:key="id">
+      <image class="avatar" src="{{item.avatar}}" mode="aspectFill" />
+      <view class="info">
+        <text class="name">{{item.nickName}}</text>
+        <text class="qty">×{{item.quantity}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="ps-more" wx:if="{{total > participants.length}}">还有 {{total - participants.length}} 人...</view>
+</view>
+
+<view class="ps empty" wx:else>
+  <text>还没有人接龙,快来做第一个吧!</text>
+</view>

@@ -1,0 +1,62 @@
+.ps {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+.ps.empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 26rpx;
+  padding: 40rpx 24rpx;
+}
+
+.ps-head {
+  margin-bottom: 16rpx;
+}
+.ps-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--brand-color);
+}
+
+.ps-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx 24rpx;
+}
+
+.ps-item {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #EEE;
+  flex-shrink: 0;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.name {
+  font-size: 24rpx;
+  color: var(--text-primary);
+}
+.qty {
+  font-size: 20rpx;
+  color: var(--text-secondary);
+}
+
+.ps-more {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  text-align: center;
+}

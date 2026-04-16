@@ -1,0 +1,83 @@
+<view class="container" wx:if="{{product}}">
+  <!-- 图轮播 -->
+  <swiper class="swiper" indicator-dots autoplay circular wx:if="{{images.length > 0}}">
+    <swiper-item wx:for="{{images}}" wx:key="*this">
+      <image class="swiper-img" src="{{item}}" mode="aspectFill" />
+    </swiper-item>
+  </swiper>
+
+  <!-- 价格/标题 -->
+  <view class="info-card">
+    <view class="price-row">
+      <text class="symbol">A$</text>
+      <text class="price">{{priceText}}</text>
+      <text class="part" wx:if="{{product.participantCount > 0}}">· {{product.participantCount}} 人接龙</text>
+    </view>
+    <view class="title">{{product.title}}</view>
+    <view class="desc" wx:if="{{product.description}}">{{product.description}}</view>
+
+    <!-- 归属团 + 倒计时 -->
+    <view class="tuan-line" wx:if="{{tuan}}">
+      <view class="tuan-label">来自</view>
+      <view class="tuan-title" bindtap="onTapTuan">{{tuan.title}}</view>
+      <countdown
+        wx:if="{{tuan.status === 'on_sale'}}"
+        target="{{tuan.endAt}}"
+        prefix="距截止"
+        mode="end"
+      />
+      <countdown
+        wx:elif="{{tuan.status === 'scheduled'}}"
+        target="{{tuan.startAt}}"
+        prefix="距开团"
+        mode="before"
+      />
+      <view wx:elif="{{tuan.status === 'closed'}}" class="closed-tag">已截团</view>
+    </view>
+
+    <!-- 库存 -->
+    <view class="stock-line">
+      <text wx:if="{{available && stockLeft > 0}}">库存 {{stockLeft}} · 已售 {{product.sold}}</text>
+      <text wx:elif="{{available && stockLeft <= 0}}" class="soldout">已抢完</text>
+      <text wx:else class="unavailable">该团未开始或已结束</text>
+    </view>
+  </view>
+
+  <!-- 参与者名单 -->
+  <participant-strip participants="{{participants}}" total="{{product.participantCount}}" />
+
+  <!-- 图文详情(简版) -->
+  <view class="detail-card">
+    <view class="detail-title">商品详情</view>
+    <view class="detail-body">{{product.description || '暂无详细描述'}}</view>
+  </view>
+
+  <!-- 占位 占位 -->
+  <view class="safe-bottom"></view>
+
+  <!-- 底栏 -->
+  <view class="bottom-bar">
+    <view class="bar-icons">
+      <button class="bar-icon" open-type="share" hover-class="none" plain="true">
+        <text class="i-ico">⇪</text>
+        <text class="i-label">分享</text>
+      </button>
+      <view class="bar-icon" bindtap="onPoster">
+        <text class="i-ico">🖼</text>
+        <text class="i-label">海报</text>
+      </view>
+    </view>
+    <t-button
+      theme="primary"
+      size="large"
+      block
+      disabled="{{!available || stockLeft <= 0}}"
+      bind:tap="onAddCart"
+    >
+      {{ available ? (stockLeft > 0 ? '加入购物车' : '已抢完') : '未开团' }}
+    </t-button>
+  </view>
+</view>
+
+<view class="loading-mask" wx:elif="{{loading}}">加载中...</view>
+<view class="empty" wx:else>商品不存在或已下架</view>

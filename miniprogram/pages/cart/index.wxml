@@ -1,0 +1,70 @@
+<view class="container">
+  <block wx:if="{{items.length > 0}}">
+    <view class="list">
+      <view class="row" wx:for="{{items}}" wx:key="productId">
+        <!-- 自制 checkbox,点整个框区域都能勾 -->
+        <view
+          class="cb-hit {{!item.available ? 'disabled' : ''}}"
+          catchtap="onToggleRow"
+          data-id="{{item.productId}}"
+        >
+          <view class="cb {{selected[item.productId] ? 'on' : ''}} {{!item.available ? 'off' : ''}}">
+            <text wx:if="{{selected[item.productId] && item.available}}">✓</text>
+          </view>
+        </view>
+
+        <image class="cover" src="{{item.product.coverFileId}}" mode="aspectFill" catchtap="onTapProduct" data-id="{{item.productId}}" />
+        <view class="body" catchtap="onTapProduct" data-id="{{item.productId}}">
+          <view class="title">{{item.product.title}}</view>
+          <view class="meta-row" wx:if="{{item.tuan}}">
+            <text class="meta">来自 {{item.tuan.title}}</text>
+            <text class="bad" wx:if="{{!item.available}}">· 已失效</text>
+          </view>
+          <view class="price-row">
+            <view class="price"><text class="sym">A$</text><text class="val">{{priceMap[item.productId]}}</text></view>
+            <view catchtap>
+              <cart-stepper
+                value="{{item.quantity}}"
+                min="{{1}}"
+                max="{{maxQtyMap[item.productId]}}"
+                disabled="{{!item.available}}"
+                bind:change="onQtyChange"
+                data-id="{{item.productId}}"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="space"></view>
+
+    <!-- 底栏 -->
+    <view class="bottom-bar">
+      <view class="bar-left" catchtap="onToggleAll">
+        <view class="cb {{allSelected ? 'on' : ''}}">
+          <text wx:if="{{allSelected}}">✓</text>
+        </view>
+        <text class="all-text">全选</text>
+      </view>
+      <view class="bar-mid">
+        <text class="total-label">合计</text>
+        <text class="total-val">A$ {{totalText}}</text>
+      </view>
+      <view class="bar-right">
+        <t-button
+          theme="primary"
+          disabled="{{selectedCount === 0}}"
+          bind:tap="onCheckout"
+        >结算 ({{selectedCount}})</t-button>
+      </view>
+      <view class="bar-del" catchtap="onRemoveSelected" wx:if="{{selectedCount > 0}}">删除</view>
+    </view>
+  </block>
+
+  <view class="empty" wx:else>
+    <view class="empty-ico">🛒</view>
+    <view>购物车还是空的</view>
+    <t-button theme="primary" size="small" class="back-btn" bind:tap="onGoHome">去首页看看</t-button>
+  </view>
+</view>

@@ -1,0 +1,27 @@
+<view class="tuan-card" bindtap="onTap" wx:if="{{tuan}}">
+  <image class="cover" src="{{tuan.coverFileId}}" mode="aspectFill" lazy-load />
+  <view class="badge badge-{{tuan.status}}">
+    <text wx:if="{{tuan.status === 'on_sale'}}">进行中</text>
+    <text wx:elif="{{tuan.status === 'scheduled'}}">待开团</text>
+    <text wx:elif="{{tuan.status === 'closed'}}">已截团</text>
+  </view>
+  <view class="body">
+    <view class="title">{{tuan.title}}</view>
+    <view class="desc" wx:if="{{tuan.description}}">{{tuan.description}}</view>
+    <view class="foot">
+      <view class="meta">共 {{tuan.productCount}} 件商品</view>
+      <countdown
+        wx:if="{{tuan.status === 'on_sale'}}"
+        target="{{tuan.endAt}}"
+        prefix="距截止"
+        mode="end"
+      />
+      <countdown
+        wx:elif="{{tuan.status === 'scheduled'}}"
+        target="{{tuan.startAt}}"
+        prefix="距开团"
+        mode="before"
+      />
+    </view>
+  </view>
+</view>

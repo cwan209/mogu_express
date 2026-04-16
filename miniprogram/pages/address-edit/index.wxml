@@ -1,0 +1,58 @@
+<view class="container">
+  <!-- 列表模式 -->
+  <block wx:if="{{screen === 'list'}}">
+    <view class="list">
+      <view class="row" wx:for="{{addresses}}" wx:key="_id" data-id="{{item._id}}" bindtap="onPickRow">
+        <view class="body">
+          <view class="head">
+            <text class="name">{{item.recipient}}</text>
+            <text class="phone">{{item.phone}}</text>
+            <text class="tag" wx:if="{{item.isDefault}}">默认</text>
+          </view>
+          <view class="addr-text">{{item.line1}}{{item.line2 ? ', ' + item.line2 : ''}}, {{item.suburb}} {{item.state}} {{item.postcode}}</view>
+        </view>
+        <view class="right">
+          <view class="ed" catchtap="onEdit" data-id="{{item._id}}">编辑</view>
+        </view>
+      </view>
+      <view class="empty-list" wx:if="{{addresses.length === 0}}">暂无地址</view>
+    </view>
+    <view class="new-btn">
+      <t-button theme="primary" block bind:tap="onNew">新增收货地址</t-button>
+    </view>
+  </block>
+
+  <!-- 编辑模式 -->
+  <block wx:else>
+    <view class="form">
+      <t-cell title="收件人" bordered>
+        <t-input slot="note" placeholder="请输入姓名" value="{{form.recipient}}" bind:change="onField" data-k="recipient" borderless />
+      </t-cell>
+      <t-cell title="电话" bordered>
+        <t-input slot="note" placeholder="请输入电话" value="{{form.phone}}" bind:change="onField" data-k="phone" borderless type="number" />
+      </t-cell>
+      <t-cell title="街道地址" bordered>
+        <t-input slot="note" placeholder="如 12 Bridge Rd" value="{{form.line1}}" bind:change="onField" data-k="line1" borderless />
+      </t-cell>
+      <t-cell title="门牌/单元" bordered>
+        <t-input slot="note" placeholder="选填,如 Unit 3" value="{{form.line2}}" bind:change="onField" data-k="line2" borderless />
+      </t-cell>
+      <t-cell title="Suburb" bordered>
+        <t-input slot="note" placeholder="例:Glen Waverley" value="{{form.suburb}}" bind:change="onField" data-k="suburb" borderless />
+      </t-cell>
+      <t-cell title="State" bordered>
+        <t-input slot="note" placeholder="VIC / NSW / QLD ..." value="{{form.state}}" bind:change="onField" data-k="state" borderless />
+      </t-cell>
+      <t-cell title="邮编" bordered>
+        <t-input slot="note" placeholder="例:3150" value="{{form.postcode}}" bind:change="onField" data-k="postcode" borderless type="number" />
+      </t-cell>
+      <t-cell title="设为默认">
+        <t-switch slot="note" value="{{form.isDefault}}" bind:change="onToggleDefault" />
+      </t-cell>
+    </view>
+    <view class="form-actions">
+      <t-button theme="primary" block bind:tap="onSave">保存</t-button>
+      <t-button theme="default" block bind:tap="onDelete" wx:if="{{form._id}}">删除</t-button>
+    </view>
+  </block>
+</view>

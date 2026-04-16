@@ -1,0 +1,18 @@
+<view class="container">
+  <view class="hero">
+    <view class="t">欢迎加入接龙团购</view>
+    <view class="sub">首次使用请完善姓名和电话,方便团长联系您</view>
+  </view>
+
+  <view class="form">
+    <t-cell title="姓名" bordered>
+      <t-input slot="note" placeholder="请输入真实姓名" value="{{form.name}}" bind:change="onField" data-k="name" borderless />
+    </t-cell>
+    <t-cell title="电话">
+      <t-input slot="note" placeholder="请输入手机号" value="{{form.phone}}" bind:change="onField" data-k="phone" borderless type="number" />
+    </t-cell>
+  </view>
+
+  <t-button theme="primary" block bind:tap="onSave" loading="{{saving}}">保存</t-button>
+  <view class="tip">保存后可在"我的 → 收货地址"里添加地址</view>
+</view>

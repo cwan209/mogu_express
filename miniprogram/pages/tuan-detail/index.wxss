@@ -1,0 +1,120 @@
+.tuan-hero {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 24rpx;
+}
+
+.cover {
+  width: 100%;
+  height: 360rpx;
+  display: block;
+  background: #EEE;
+}
+
+.tuan-body {
+  padding: 24rpx;
+}
+
+.title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.tag {
+  display: inline-block;
+  padding: 4rpx 14rpx;
+  border-radius: 40rpx;
+  font-size: 22rpx;
+  color: #fff;
+}
+.tag-sale      { background: var(--brand-color); }
+.tag-scheduled { background: var(--warning-color); }
+.tag-closed    { background: rgba(0, 0, 0, 0.4); }
+
+.desc {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.meta {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: var(--text-placeholder);
+}
+.meta .dot { margin: 0 8rpx; }
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8rpx 4rpx 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+.section-title .count {
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-size: 24rpx;
+}
+
+.bottom-spacer { height: 140rpx; }
+
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1rpx solid var(--border-color);
+  display: flex;
+  gap: 16rpx;
+  z-index: 10;
+}
+.share-btn,
+.poster-btn {
+  flex: 1;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  background: var(--brand-color);
+  color: #fff;
+  border-radius: 44rpx;
+  font-size: 28rpx;
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-weight: 500;
+  box-sizing: border-box;
+}
+.share-btn::after { border: none; }
+.poster-btn {
+  background: #fff;
+  color: var(--brand-color);
+  border: 2rpx solid var(--brand-color);
+}
+.poster-btn:active,
+.share-btn:active { opacity: 0.8; }
+.share-btn .i-ico,
+.poster-btn .i-ico { font-size: 30rpx; }
+
+.loading-mask,
+.empty {
+  text-align: center;
+  padding: 120rpx 0;
+  color: var(--text-secondary);
+}

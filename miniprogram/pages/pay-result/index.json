@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "支付结果",
+  "usingComponents": {
+    "t-button": "tdesign-miniprogram/button/button"
+  }
+}

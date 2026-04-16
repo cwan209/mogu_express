@@ -1,0 +1,79 @@
+.tabs {
+  display: flex;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 8rpx;
+  margin-bottom: 16rpx;
+}
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+}
+.tab.active {
+  background: var(--brand-color);
+  color: #fff;
+  font-weight: 600;
+}
+
+.order-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14rpx;
+  border-bottom: 1rpx solid var(--border-color);
+}
+.head .no { font-size: 24rpx; color: var(--text-secondary); font-family: monospace; }
+.status {
+  font-size: 22rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
+  color: #fff;
+}
+.status-pending_pay { background: var(--warning-color); }
+.status-paid        { background: var(--success-color); }
+.status-shipped     { background: #1677FF; }
+.status-completed   { background: rgba(0,0,0,0.4); }
+.status-cancelled   { background: var(--text-placeholder); }
+.status-refunded    { background: var(--error-color); }
+
+.items {
+  display: flex;
+  gap: 12rpx;
+  padding: 16rpx 0;
+  overflow-x: auto;
+}
+.thumb {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: var(--radius-sm);
+  background: #EEE;
+  flex-shrink: 0;
+}
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14rpx;
+  border-top: 1rpx dashed var(--border-color);
+  font-size: 24rpx;
+}
+.foot .count  { color: var(--text-secondary); }
+.foot .amount { color: var(--brand-color); font-weight: 700; font-size: 30rpx; }
+
+.empty {
+  text-align: center;
+  padding: 160rpx 0;
+  color: var(--text-secondary);
+}

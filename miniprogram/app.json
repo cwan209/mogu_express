@@ -1,0 +1,43 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/tuan-detail/index",
+    "pages/product-detail/index",
+    "pages/cart/index",
+    "pages/order-confirm/index",
+    "pages/pay-result/index",
+    "pages/orders/index",
+    "pages/order-detail/index",
+    "pages/address-edit/index",
+    "pages/admin/index",
+    "pages/poster/index",
+    "pages/login/index",
+    "pages/register/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "接龙团购",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F5F5F5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#E34D59",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/index/index",  "text": "首页" },
+      { "pagePath": "pages/cart/index",   "text": "购物车" },
+      { "pagePath": "pages/orders/index", "text": "订单" },
+      { "pagePath": "pages/profile/index","text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "useExtendedLib": {
+    "weui": true
+  }
+}

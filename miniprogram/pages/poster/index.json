@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "生成海报",
+  "usingComponents": {
+    "t-button": "tdesign-miniprogram/button/button"
+  }
+}

@@ -1,0 +1,4 @@
+<!--pages/login/index.wxml · M0 占位,M1 填充正式流程-->
+<view class="container">
+  <view class="empty">登录页(M1 实现)</view>
+</view>

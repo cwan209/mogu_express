@@ -1,0 +1,40 @@
+.result {
+  text-align: center;
+  padding: 80rpx 0 48rpx;
+}
+.ico {
+  width: 120rpx;
+  height: 120rpx;
+  line-height: 120rpx;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 64rpx;
+  margin: 0 auto 24rpx;
+}
+.state-paid    .ico { background: var(--success-color); }
+.state-pending .ico { background: var(--warning-color); }
+.state-failed  .ico { background: var(--error-color); }
+
+.title { font-size: 36rpx; font-weight: 700; color: var(--text-primary); }
+.sub   { color: var(--text-secondary); font-size: 24rpx; margin-top: 8rpx; }
+
+.info {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 8rpx 24rpx;
+  margin-bottom: 32rpx;
+}
+.info .r {
+  display: flex;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--border-color);
+  font-size: 26rpx;
+}
+.info .r:last-child { border-bottom: none; }
+.info .r text:first-child { color: var(--text-secondary); }
+.info .brand { color: var(--brand-color); font-weight: 600; font-size: 30rpx; }
+
+.actions { display: flex; flex-direction: column; gap: 16rpx; }
+
+.loading { text-align: center; padding: 200rpx 0; color: var(--text-secondary); }

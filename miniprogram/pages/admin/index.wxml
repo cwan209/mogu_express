@@ -1,0 +1,74 @@
+<!--pages/admin/index.wxml · 团长管理台-->
+<view class="container">
+  <view class="dev-tip" wx:if="{{!isAdmin && !forceView}}">
+    <view class="tip-ico">👤</view>
+    <view class="tip-title">检测到当前账号非管理员</view>
+    <view class="tip-sub">开发/演示模式下可临时进入此页</view>
+    <t-button theme="primary" size="medium" bind:tap="onForceEnable">以管理员身份预览</t-button>
+  </view>
+
+  <block wx:if="{{isAdmin || forceView}}">
+    <!-- 统计卡 -->
+    <view class="stats-card">
+      <view class="stat">
+        <view class="stat-label">今日 GMV</view>
+        <view class="stat-val brand">A$ {{gmvTodayText}}</view>
+      </view>
+      <view class="stat">
+        <view class="stat-label">今日订单</view>
+        <view class="stat-val">{{stats.ordersToday || 0}}</view>
+      </view>
+      <view class="stat">
+        <view class="stat-label">待发货</view>
+        <view class="stat-val warn">{{stats.pendingShip || pendingOrders.length}}</view>
+      </view>
+    </view>
+
+    <view class="stats-row-7d">
+      <text class="label">近 7 天</text>
+      <text>A$ {{gmv7dText}} · {{stats.orders7d || 0}} 单</text>
+    </view>
+
+    <!-- 待发货订单 -->
+    <view class="section-title">待发货订单({{pendingOrders.length}})</view>
+
+    <view wx:if="{{pendingOrders.length === 0}}" class="empty">
+      暂无待发货订单
+    </view>
+
+    <view wx:for="{{pendingOrders}}" wx:key="_id" class="order-card">
+      <view class="order-head">
+        <text class="order-no">{{item.orderNo}}</text>
+        <text class="order-time">{{timeText[item._id]}}</text>
+      </view>
+
+      <view class="customer-row">
+        <text class="cust-name">{{item.userSnapshot.name}}</text>
+        <text class="cust-phone" bindtap="onCallPhone" data-phone="{{item.userSnapshot.phone}}">📞 {{item.userSnapshot.phone}}</text>
+      </view>
+
+      <view class="address">
+        📍 {{addressText[item._id]}}
+      </view>
+
+      <view class="items-list">
+        <view wx:for="{{item.items}}" wx:key="productId" wx:for-item="it" class="item-line">
+          <text>{{it.title}}</text>
+          <text class="qty">× {{it.quantity}}</text>
+        </view>
+      </view>
+
+      <view class="order-foot">
+        <text class="amount">A$ {{amountText[item._id]}}</text>
+        <t-button
+          theme="primary"
+          size="small"
+          bind:tap="onShip"
+          data-id="{{item._id}}"
+        >标记发货</t-button>
+      </view>
+    </view>
+
+    <view class="foot-tip">Web 后台可导出 Excel / 管理商品 / 建团</view>
+  </block>
+</view>

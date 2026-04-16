@@ -1,0 +1,4 @@
+<view class="countdown {{expired ? 'expired' : ''}}">
+  <text class="prefix" wx:if="{{prefix && !expired}}">{{prefix}}</text>
+  <text class="value">{{text}}</text>
+</view>

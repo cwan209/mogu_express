@@ -1,0 +1,21 @@
+<!--pages/profile/index.wxml-->
+<view class="container">
+  <view class="profile-card">
+    <view class="avatar-placeholder">🛒</view>
+    <view class="greet">{{isRegistered ? '你好, ' + (userName || '顾客') : '欢迎使用接龙团购'}}</view>
+    <view class="hint" wx:if="{{!isRegistered}}">首次使用请完善姓名/电话</view>
+  </view>
+
+  <t-cell-group>
+    <t-cell title="完善资料" arrow url="/pages/register/index" wx:if="{{!isRegistered}}" />
+    <t-cell title="我的订单" arrow hover bind:click="onGoOrders" />
+    <t-cell title="购物车"   arrow hover bind:click="onGoCart" />
+    <t-cell title="收货地址" arrow hover url="/pages/address-edit/index" />
+    <t-cell title="编辑姓名/电话" arrow hover url="/pages/register/index" wx:if="{{isRegistered}}" />
+    <t-cell title="团长管理台" note="{{isAdmin ? 'admin' : 'preview'}}" arrow hover url="/pages/admin/index" />
+  </t-cell-group>
+
+  <view class="foot">
+    <text>mogu_express · M2</text>
+  </view>
+</view>

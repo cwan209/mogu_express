@@ -1,0 +1,19 @@
+<view class="product-card" bindtap="onTap" wx:if="{{product}}">
+  <image class="cover" src="{{product.coverFileId}}" mode="aspectFill" lazy-load />
+  <view class="body">
+    <view class="title">{{product.title}}</view>
+    <view class="desc" wx:if="{{product.description}}">{{product.description}}</view>
+    <view class="foot">
+      <view class="price">
+        <text class="symbol">A$</text>
+        <text class="value">{{priceText}}</text>
+      </view>
+      <view class="right">
+        <text class="stock" wx:if="{{available && stockLeft > 0}}">剩 {{stockLeft}}</text>
+        <text class="stock soldout" wx:elif="{{available && stockLeft <= 0}}">已抢完</text>
+        <text class="stock unavailable" wx:else>未开团</text>
+        <text class="participants" wx:if="{{product.participantCount > 0}}">· {{product.participantCount}}人接龙</text>
+      </view>
+    </view>
+  </view>
+</view>

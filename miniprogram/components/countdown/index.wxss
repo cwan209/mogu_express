@@ -1,0 +1,16 @@
+.countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  font-size: 24rpx;
+  color: var(--error-color);
+  font-weight: 600;
+}
+.countdown .prefix {
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-right: 4rpx;
+}
+.countdown.expired {
+  color: var(--text-placeholder);
+}

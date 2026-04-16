@@ -1,0 +1,29 @@
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1rpx solid var(--border-color);
+  border-radius: 40rpx;
+  overflow: hidden;
+  background: #fff;
+}
+.stepper.disabled { opacity: 0.5; }
+
+.btn {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  color: var(--text-primary);
+  user-select: none;
+}
+.btn.off { color: var(--text-placeholder); }
+.btn:active { background: #F5F5F5; }
+
+.val {
+  min-width: 52rpx;
+  text-align: center;
+  font-size: 26rpx;
+  font-weight: 500;
+}

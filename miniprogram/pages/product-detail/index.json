@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "商品详情",
+  "usingComponents": {
+    "countdown": "/components/countdown/index",
+    "participant-strip": "/components/participant-strip/index",
+    "t-button": "tdesign-miniprogram/button/button"
+  }
+}

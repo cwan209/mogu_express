@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+**/node_modules/
+**/miniprogram_npm/
+
+# Build
+dist/
+build/
+.next/
+.vite/
+**/dist/
+**/.vite/
+*.tsbuildinfo
+**/tsconfig.tsbuildinfo
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+.cloudbase/
+
+# WeChat Developer Tool 私有配置(包含本地开发设置)
+project.private.config.json
+
+# Claude Code 本地 agent 配置(per-machine, 别人不需要)
+.claude/
+
+# Temporary
+*.tmp
+*.bak
+
+# OS
+.Spotlight-V100
+.Trashes
+._*
+
+# 项目特定
+docs/huepay/                # HuePay 私有 API 文档(NDA 之下)
+local-backend/data/         # 本地 mongo/minio 数据(若没用 docker volume)
+*.xlsx                      # 测试导出

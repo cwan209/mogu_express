@@ -1,0 +1,9 @@
+{
+  "name": "adminLogin",
+  "version": "1.0.0",
+  "description": "Web 后台用户名密码登录,签 JWT",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

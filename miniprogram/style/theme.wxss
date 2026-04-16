@@ -1,0 +1,40 @@
+/* theme.wxss - 全局主题变量(TDesign 兼容) */
+page {
+  --brand-color: #E34D59;
+  --brand-color-light: #F9E4E6;
+
+  /* 覆盖 TDesign 组件的品牌色(按钮/checkbox/switch 等) */
+  --td-brand-color:           #E34D59;
+  --td-brand-color-1:         #FCEBED;
+  --td-brand-color-2:         #F7CFD3;
+  --td-brand-color-3:         #F2A8B0;
+  --td-brand-color-4:         #EC828D;
+  --td-brand-color-5:         #E65E6B;
+  --td-brand-color-6:         #E34D59;   /* 默认态 */
+  --td-brand-color-7:         #C7424C;
+  --td-brand-color-8:         #A83741;
+  --td-brand-color-9:         #892C35;
+  --td-brand-color-10:        #6B2229;
+  --td-brand-color-hover:     #E65E6B;
+  --td-brand-color-focus:     #F7CFD3;
+  --td-brand-color-active:    #C7424C;
+  --td-brand-color-disabled:  #F2A8B0;
+
+  --bg-page: #F5F5F5;
+  --bg-card: #FFFFFF;
+
+  --text-primary: #181818;
+  --text-secondary: #888888;
+  --text-placeholder: #BBBBBB;
+
+  --border-color: #EEEEEE;
+  --border-color-strong: #DDDDDD;
+
+  --success-color: #2BA471;
+  --warning-color: #ED7B2F;
+  --error-color: #D54941;
+
+  --radius-sm: 8rpx;
+  --radius-md: 16rpx;
+  --radius-lg: 24rpx;
+}
