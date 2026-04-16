@@ -1,20 +1,46 @@
-// test-shim.js - 不用真 Mongo,用 mock client 验证云函数 + shim 端到端
-// 跑法: node test-shim.js
+// test-shim.js - 端到端集成测试
+//   - 不需要真 MongoDB:用纯内存 mock 实现 mongo client API
+//   - 通过 wx-server-sdk shim 跑真实云函数代码
+//   - 用真断言(node:assert),失败立刻 throw → process exit 1
+//
+// 用法:  node test-shim.js
+// CI:    npm test 触发本文件,exit code 决定 PR 是否通过
+
+'use strict';
 
 const path = require('path');
 const Module = require('module');
+const assert = require('assert/strict');
 
-// Hook require('wx-server-sdk')
+// ---- 1. 把 require('wx-server-sdk') 重定向到 shim,fallback 到 api/node_modules ----
 const SHIM_PATH = path.resolve(__dirname, 'src/shim/index.js');
+const FALLBACK = path.resolve(__dirname, 'node_modules');
 const origResolve = Module._resolveFilename;
 Module._resolveFilename = function (r, p, ...rest) {
   if (r === 'wx-server-sdk') return SHIM_PATH;
-  return origResolve.call(this, r, p, ...rest);
+  try { return origResolve.call(this, r, p, ...rest); }
+  catch (err) {
+    if (err.code === 'MODULE_NOT_FOUND' && !r.startsWith('.') && !r.startsWith('/')) {
+      try { return origResolve.call(this, path.join(FALLBACK, r), p, ...rest); } catch {}
+    }
+    throw err;
+  }
 };
 
-const shim = require('./src/shim');
+// HuePay 用 stub 模式
+process.env.HUEPAY_STUB = '1';
+process.env.CLOUD_ENV = 'local';
 
-// 最小 Mongo mock:仅实现 find/insertOne/updateOne/deleteOne/countDocuments
+const shim = require('./src/shim');
+const cfRoot = path.resolve(__dirname, '../../cloudfunctions');
+const requireCf = (rel) => {
+  // 强制重新 require,避免 module cache 让 shim/db 状态污染下个 test
+  const p = path.join(cfRoot, rel, 'index.js');
+  delete require.cache[require.resolve(p)];
+  return require(p);
+};
+
+// ---- 2. In-memory MongoDB mock ----
 function mkMockDb(seed) {
   const store = JSON.parse(JSON.stringify(seed || {}));
   return {
@@ -26,29 +52,34 @@ function mkMockDb(seed) {
         if (f.$and) return f.$and.every((c) => applyFilter(c, doc));
         if (f.$or)  return f.$or.some((c) => applyFilter(c, doc));
         for (const [k, v] of Object.entries(f)) {
-          const dv = k.includes('.') ? k.split('.').reduce((o, p) => o?.[p], doc) : doc[k];
+          const dv = k.includes('.')
+            ? k.split('.').reduce((o, p) => (Array.isArray(o) ? o.map(x => x?.[p]) : o?.[p]), doc)
+            : doc[k];
           if (v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date)) {
-            if ('$in'  in v && !v.$in.includes(dv)) return false;
+            if ('$in' in v) {
+              const a = Array.isArray(dv) ? dv : [dv];
+              if (!a.some((x) => v.$in.includes(x))) return false;
+            }
             if ('$nin' in v && v.$nin.includes(dv)) return false;
-            if ('$ne'  in v && dv === v.$ne) return false;
-            if ('$gt'  in v && !(dv > v.$gt)) return false;
-            if ('$gte' in v && !(dv >= v.$gte)) return false;
-            if ('$lt'  in v && !(dv < v.$lt)) return false;
-            if ('$lte' in v && !(dv <= v.$lte)) return false;
-          } else {
-            if (dv !== v) return false;
-          }
+            if ('$ne' in v && dv === v.$ne) return false;
+            if ('$gt' in v && !(new Date(dv) > new Date(v.$gt))) return false;
+            if ('$gte' in v && !(new Date(dv) >= new Date(v.$gte))) return false;
+            if ('$lt' in v && !(new Date(dv) < new Date(v.$lt))) return false;
+            if ('$lte' in v && !(new Date(dv) <= new Date(v.$lte))) return false;
+          } else if (Array.isArray(dv) && typeof v === 'string') {
+            if (!dv.includes(v)) return false;
+          } else if (dv !== v) return false;
         }
         return true;
       }
       return {
         find(f) {
-          let matched = arr.filter((d) => applyFilter(f || {}, d));
+          let m = arr.filter((d) => applyFilter(f || {}, d));
           const api = {
-            sort(s) { const [[k, d]] = Object.entries(s); matched.sort((a, b) => (a[k] < b[k] ? -d : d)); return api; },
-            skip(n) { matched = matched.slice(n); return api; },
-            limit(n) { matched = matched.slice(0, n); return api; },
-            async toArray() { return matched; },
+            sort(s) { const [[k, d]] = Object.entries(s); m.sort((a, b) => (a[k] < b[k] ? -d : d)); return api; },
+            skip(n) { m = m.slice(n); return api; },
+            limit(n) { m = m.slice(0, n); return api; },
+            async toArray() { return m; },
           };
           return api;
         },
@@ -88,112 +119,325 @@ function mkMockDb(seed) {
   };
 }
 
-const seed = {
-  tuans: [
-    { _id: 'tuan_001', status: 'on_sale',  endAt: new Date(Date.now() + 86400e3), title: 'Tuan 1', createdAt: new Date() },
-    { _id: 'tuan_002', status: 'scheduled', endAt: new Date(Date.now() + 172800e3), title: 'Tuan 2', createdAt: new Date() },
-    { _id: 'tuan_003', status: 'closed',    endAt: new Date(Date.now() - 86400e3), title: 'Tuan 3', createdAt: new Date() },
-  ],
-  products: [
-    { _id: 'p1', tuanId: 'tuan_001', sort: 1, title: 'P1', price: 100, stock: 10, sold: 0 },
-    { _id: 'p2', tuanId: 'tuan_001', sort: 2, title: 'P2', price: 200, stock: 5, sold: 2 },
-  ],
-  users: [],
-  admins: [],
-  carts: [],
-  addresses: [],
-  orders: [],
+const mockClient = {
+  startSession: () => ({
+    withTransaction: async (fn) => fn(),
+    endSession: async () => {},
+  }),
 };
 
-async function run() {
-  const mockClient = { startSession: () => ({ withTransaction: async (fn) => fn(), endSession: async () => {} }) };
-  shim.__setMongo(mockClient, mkMockDb(seed));
+// ---- 3. 测试 runner ----
+const tests = [];
+function test(name, fn) { tests.push({ name, fn }); }
 
-  // Test 1: listTuans
-  console.log('\n=== Test 1: listTuans ===');
-  shim.__setContext({ OPENID: null });
-  const listTuans = require(path.resolve(__dirname, '../../cloudfunctions/listTuans/index.js'));
-  const r1 = await listTuans.main({ page: 1, pageSize: 20 }, {});
-  console.log('result:', JSON.stringify(r1, null, 2));
-  console.assert(r1.code === 0, 'listTuans should succeed');
-  console.assert(r1.items.length === 2, 'should return 2 tuans (on_sale + scheduled)');
-
-  // Test 2: getTuanDetail
-  console.log('\n=== Test 2: getTuanDetail ===');
-  const getTuanDetail = require(path.resolve(__dirname, '../../cloudfunctions/getTuanDetail/index.js'));
-  const r2 = await getTuanDetail.main({ tuanId: 'tuan_001' }, {});
-  console.log('tuan:', r2.tuan?.title, '| products:', r2.products?.length);
-  console.assert(r2.code === 0 && r2.products.length === 2, 'should return tuan + 2 products');
-
-  // Test 3: login (injects openid, upserts user)
-  console.log('\n=== Test 3: login ===');
-  shim.__setContext({ OPENID: 'test_user_1' });
-  const login = require(path.resolve(__dirname, '../../cloudfunctions/login/index.js'));
-  const r3 = await login.main({}, {});
-  console.log('result:', r3);
-  console.assert(r3.code === 0 && r3.openid === 'test_user_1', 'login should return openid');
-  console.assert(r3.isRegistered === false, 'new user not registered');
-
-  // Test 4: registerProfile
-  console.log('\n=== Test 4: registerProfile ===');
-  const registerProfile = require(path.resolve(__dirname, '../../cloudfunctions/registerProfile/index.js'));
-  const r4 = await registerProfile.main({ name: 'Tester', phone: '0400000000' }, {});
-  console.log('result:', r4);
-  console.assert(r4.code === 0, 'register should succeed');
-
-  // Test 5: login again — should now be registered
-  console.log('\n=== Test 5: login again ===');
-  const r5 = await login.main({}, {});
-  console.log('result:', r5);
-  console.assert(r5.isRegistered === true, 'should be registered now');
-
-  // Test 6: listProducts with filter
-  console.log('\n=== Test 6: listProducts ===');
-  const listProducts = require(path.resolve(__dirname, '../../cloudfunctions/listProducts/index.js'));
-  const r6 = await listProducts.main({ tuanId: 'tuan_001' }, {});
-  console.log('products:', r6.items.map(p => p._id));
-  console.assert(r6.code === 0 && r6.items.length === 2, 'should return 2 products for tuan_001');
-
-  // Test 7: createOrder — 事务 + 多集合 + 库存扣减
-  console.log('\n=== Test 7: createOrder (transaction) ===');
-  // 需要一个默认地址
-  const addressId = 'addr_test_1';
-  seed.addresses = [{
-    _id: addressId, _openid: 'test_user_1', isDefault: true,
-    recipient: 'Tester', phone: '0400000000',
-    line1: '1 Test St', line2: '', suburb: 'Test', state: 'VIC', postcode: '3000',
-  }];
-  // 重新挂 mock(数据变了)
-  shim.__setMongo(mockClient, mkMockDb({ ...seed, users: [{ _openid: 'test_user_1', name: 'Tester', phone: '0400000000', registeredAt: new Date() }] }));
-
-  const createOrder = require(path.resolve(__dirname, '../../cloudfunctions/createOrder/index.js'));
-  const r7 = await createOrder.main({
-    items: [
-      { productId: 'p1', quantity: 2 },
-      { productId: 'p2', quantity: 1 },
-    ],
-    addressId,
-    remark: 'test order',
-  }, {});
-  console.log('order:', { code: r7.code, orderNo: r7.order?.orderNo, amount: r7.order?.amount, items: r7.order?.items?.length });
-  console.assert(r7.code === 0, 'createOrder should succeed');
-  console.assert(r7.order.amount === 100 * 2 + 200 * 1, 'amount should be 400');
-  console.assert(r7.order.items.length === 2, 'should have 2 items');
-  console.assert(r7.order.status === 'paid', 'M2 should mark paid immediately');
-
-  // Test 8: cancelOrder 回滚库存
-  console.log('\n=== Test 8: cancelOrder ===');
-  // 先把订单状态改回 pending_pay 以测试取消
-  // (简化起见直接测取消失败的 path)
-  const cancelOrder = require(path.resolve(__dirname, '../../cloudfunctions/cancelOrder/index.js'));
-  const r8 = await cancelOrder.main({ orderId: r7.order._id }, {});
-  console.log('cancel result:', r8);
-  console.assert(r8.code === 3, 'paid order cannot be cancelled (expected code 3)');
-
-  console.log('\n✅ All 8 tests passed');
+async function runAll() {
+  let passed = 0, failed = 0;
+  const failures = [];
+  for (const t of tests) {
+    process.stdout.write(`  • ${t.name} ... `);
+    try {
+      await t.fn();
+      console.log('\x1b[32mok\x1b[0m');
+      passed++;
+    } catch (err) {
+      console.log('\x1b[31mFAIL\x1b[0m');
+      failures.push({ name: t.name, err });
+      failed++;
+    }
+  }
+  console.log();
+  console.log(`────────────────────────────────────`);
+  console.log(`  ${passed} passed,  ${failed} failed`);
+  if (failures.length) {
+    console.log();
+    for (const { name, err } of failures) {
+      console.log(`\x1b[31m✗ ${name}\x1b[0m`);
+      console.log('   ' + (err.stack || err.message).split('\n').join('\n   '));
+      console.log();
+    }
+    process.exit(1);
+  }
+  console.log('\x1b[32m✅ all passed\x1b[0m');
 }
 
-run().catch((err) => {
-  console.error('❌ Test failed:', err);
+// ---- 4. 准备 seed ----
+function freshSeed() {
+  return {
+    tuans: [
+      { _id: 'tuan_001', status: 'on_sale',  endAt: new Date(Date.now() + 86400e3), title: 'Tuan 1', createdAt: new Date(), productCount: 2 },
+      { _id: 'tuan_002', status: 'scheduled', endAt: new Date(Date.now() + 172800e3), title: 'Tuan 2', createdAt: new Date(), productCount: 0 },
+      { _id: 'tuan_003', status: 'closed',    endAt: new Date(Date.now() - 86400e3), title: 'Tuan 3', createdAt: new Date(), productCount: 0 },
+    ],
+    products: [
+      { _id: 'p1', tuanId: 'tuan_001', sort: 1, title: 'P1', price: 100, stock: 10, sold: 0, participantCount: 0, coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+      { _id: 'p2', tuanId: 'tuan_001', sort: 2, title: 'P2', price: 200, stock: 5, sold: 2, participantCount: 0, coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+    ],
+    users: [], admins: [], carts: [], addresses: [], orders: [],
+    pay_logs: [], participant_index: [], categories: [],
+  };
+}
+
+function reset(extra = {}) {
+  const seed = { ...freshSeed(), ...extra };
+  shim.__setMongo(mockClient, mkMockDb(seed));
+  return seed;
+}
+
+// ════════════════════════════════════════════
+// Tests
+// ════════════════════════════════════════════
+
+test('listTuans 只返回 on_sale + scheduled', async () => {
+  reset();
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('listTuans').main({ page: 1, pageSize: 20 }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.items.length, 2);
+  assert.ok(r.items.every(t => ['on_sale', 'scheduled'].includes(t.status)));
+});
+
+test('getTuanDetail 返回团 + 商品列表', async () => {
+  reset();
+  const r = await requireCf('getTuanDetail').main({ tuanId: 'tuan_001' }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.tuan._id, 'tuan_001');
+  assert.equal(r.products.length, 2);
+});
+
+test('login 新用户 isRegistered=false', async () => {
+  reset();
+  shim.__setContext({ OPENID: 'u_new' });
+  const r = await requireCf('login').main({}, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.openid, 'u_new');
+  assert.equal(r.isRegistered, false);
+});
+
+test('registerProfile 后 isRegistered 变 true', async () => {
+  reset();
+  shim.__setContext({ OPENID: 'u_new' });
+  await requireCf('login').main({}, {});
+  await requireCf('registerProfile').main({ name: 'A', phone: '0400' }, {});
+  const r2 = await requireCf('login').main({}, {});
+  assert.equal(r2.isRegistered, true);
+  assert.equal(r2.userInfo.name, 'A');
+});
+
+test('listProducts 按 tuanId 过滤', async () => {
+  reset();
+  const r = await requireCf('listProducts').main({ tuanId: 'tuan_001' }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.items.length, 2);
+});
+
+test('createOrder requirePay=true 返 pending_pay + stub payParams', async () => {
+  reset({
+    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('createOrder').main({
+    items: [{ productId: 'p1', quantity: 2 }, { productId: 'p2', quantity: 1 }],
+    addressId: 'addr1', remark: 't', requirePay: true,
+  }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.order.status, 'pending_pay');
+  assert.equal(r.order.payStatus, 'pending');
+  assert.equal(r.order.amount, 100 * 2 + 200 * 1);
+  assert.ok(r.payParams);
+  assert.equal(r.payParams.__stub, true);
+});
+
+test('createOrder requirePay=false 直接 paid(legacy 兼容)', async () => {
+  reset({
+    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('createOrder').main({
+    items: [{ productId: 'p1', quantity: 1 }],
+    addressId: 'addr1', requirePay: false,
+  }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.order.status, 'paid');
+  assert.equal(r.order.payStatus, 'paid');
+  assert.equal(r.payParams, null);
+});
+
+test('createOrder 库存不足时拒绝', async () => {
+  reset({
+    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  // createOrder throws { code: 6, message: '...' } (plain object, not Error)
+  await assert.rejects(
+    requireCf('createOrder').main({
+      items: [{ productId: 'p1', quantity: 999 }],
+      addressId: 'addr1', requirePay: false,
+    }, {}),
+    (err) => err && err.code === 6 && /库存不足/.test(err.message || ''),
+  );
+});
+
+test('cancelOrder 仅 pending_pay 可取消(paid 拒绝)', async () => {
+  reset({
+    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+
+  // 先做一个 paid 订单
+  const r1 = await requireCf('createOrder').main({
+    items: [{ productId: 'p1', quantity: 1 }],
+    addressId: 'addr1', requirePay: false,
+  }, {});
+  const r2 = await requireCf('cancelOrder').main({ orderId: r1.order._id }, {});
+  assert.equal(r2.code, 3);    // "仅待支付订单可取消"
+});
+
+test('simulatePay 把 pending_pay 订单变 paid', async () => {
+  reset({
+    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r1 = await requireCf('createOrder').main({
+    items: [{ productId: 'p1', quantity: 1 }],
+    addressId: 'addr1', requirePay: true,
+  }, {});
+  assert.equal(r1.order.payStatus, 'pending');
+  const r2 = await requireCf('_dev/simulatePay').main({ orderId: r1.order._id }, {});
+  assert.equal(r2.code, 0);
+  assert.equal(r2.order.payStatus, 'paid');
+});
+
+test('queryHuepayOrder 已支付订单返 source=local 短路', async () => {
+  reset({
+    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r1 = await requireCf('createOrder').main({
+    items: [{ productId: 'p1', quantity: 1 }], addressId: 'addr1', requirePay: false,
+  }, {});
+  const q = await requireCf('queryHuepayOrder').main({ orderId: r1.order._id }, {});
+  assert.equal(q.code, 0);
+  assert.equal(q.paid, true);
+  assert.equal(q.source, 'local');
+});
+
+test('payCallback 幂等(已 paid 订单重放被忽略)', async () => {
+  reset({
+    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r1 = await requireCf('createOrder').main({
+    items: [{ productId: 'p1', quantity: 1 }], addressId: 'addr1', requirePay: true,
+  }, {});
+  await requireCf('_dev/simulatePay').main({ orderId: r1.order._id }, {});
+
+  // Replay callback
+  const cbResult = await requireCf('payCallback').main({
+    __stub: true,
+    out_trade_no: r1.order.outTradeNo,
+    transaction_id: 'STUB_TX_DUP',
+    amount: r1.order.amount,
+    status: 'SUCCESS',
+    paid_at: new Date().toISOString(),
+  }, {});
+  assert.equal(cbResult.code, 0);
+});
+
+test('_admin/adminLogin 用户名密码 + 签 JWT', async () => {
+  // 用真实 hashPassword 生成
+  const { hashPassword } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner', openid: 'admin_x' }],
+  });
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/adminLogin').main({ username: 'admin', password: 'admin' });
+  assert.equal(r.code, 0);
+  assert.ok(r.token);
+  assert.equal(r.admin.username, 'admin');
+});
+
+test('_admin/tuanCRUD list with JWT 通过', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner', openid: 'admin_x' }],
+  });
+  const token = sign({ sub: 'a1', username: 'admin', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/tuanCRUD').main({ action: 'list', token });
+  assert.equal(r.code, 0);
+  assert.ok(Array.isArray(r.items));
+});
+
+test('_admin/tuanCRUD list 无 token 返 401', async () => {
+  reset();
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/tuanCRUD').main({ action: 'list' });
+  assert.equal(r.code, 401);
+});
+
+test('_admin/exportOrders 生成有效 xlsx', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    orders: [{
+      _id: 'o1', orderNo: 'MG001', outTradeNo: 'T1', _openid: 'u1',
+      userSnapshot: { name: 'A', phone: '0400' },
+      items: [{ productId: 'p1', tuanId: 'tuan_001', title: 'P1', price: 100, quantity: 1, subtotal: 100, coverFileId: '' }],
+      amount: 100, shipping: { recipient: 'A', phone: '0400', line1: '1', line2: '', suburb: 'M', state: 'VIC', postcode: '3000' },
+      remark: '', status: 'paid', payStatus: 'paid',
+      paidAt: new Date(), createdAt: new Date(), updatedAt: new Date(),
+    }],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/exportOrders').main({ token });
+  assert.equal(r.code, 0);
+  assert.ok(r.base64);
+  const buf = Buffer.from(r.base64, 'base64');
+  assert.ok(buf.length > 1000, 'xlsx should be substantial');
+  assert.equal(buf.slice(0, 2).toString('hex'), '504b', 'PK magic = valid xlsx zip');
+});
+
+test('cron_tuanStatus 运行不报错', async () => {
+  reset();
+  const r = await requireCf('cron_tuanStatus').main({}, {});
+  assert.equal(r.code, 0);
+});
+
+test('HuePay SDK refund stub', async () => {
+  const huepay = require(path.join(cfRoot, 'createOrder/huepay/index.js'));
+  // 强制 reload 拿 stub
+  delete require.cache[require.resolve(path.join(cfRoot, 'createOrder/huepay/index.js'))];
+  const fresh = require(path.join(cfRoot, 'createOrder/huepay/index.js'));
+  const r = await fresh.refund({ outTradeNo: 'TX1', refundNo: 'R1', refundAmount: 100, reason: 'test' });
+  assert.equal(r.success, true);
+  assert.ok(r.refundId);
+});
+
+// ---- 5. Run ----
+console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
+runAll().catch((err) => {
+  console.error('\n❌ test runner crashed:', err);
   process.exit(1);
 });
