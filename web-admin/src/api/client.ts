@@ -129,6 +129,7 @@ function mockProductCRUD({ action, payload, id, patch, tuanId, categoryId }: any
         coverFileId: payload.coverFileId || '',
         imageFileIds: payload.imageFileIds || [],
         categoryIds: payload.categoryIds || [],
+        section: (payload.section || '').trim() || null,
         price: payload.price | 0,
         stock: payload.stock | 0,
         sort: payload.sort | 0,
@@ -136,7 +137,13 @@ function mockProductCRUD({ action, payload, id, patch, tuanId, categoryId }: any
       return { code: 0, _id: p._id };
     }
     case 'update': {
-      const p = mockDb.updateProduct(id, patch);
+      // section 字段:trim 后空串存 null
+      const normalized = { ...patch };
+      if ('section' in normalized) {
+        const s = (normalized.section || '').trim();
+        normalized.section = s || null;
+      }
+      const p = mockDb.updateProduct(id, normalized);
       if (!p) return { code: 2, message: 'not found' };
       return { code: 0 };
     }

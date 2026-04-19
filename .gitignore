@@ -51,7 +51,12 @@ project.private.config.json
 ._*
 
 # 项目特定
-docs/huepay/                # HuePay 私有 API 文档(NDA 之下)
-local-backend/data/         # 本地 mongo/minio 数据(若没用 docker volume)
-*.xlsx                      # 测试导出
-scripts/check-syntax.stub.js  # syntax checker 自生成的 stub,跑一次自动产出
+# HuePay 私有 API 文档(NDA 之下)
+docs/huepay/
+# 本地 mongo/minio 数据(若没用 docker volume)
+local-backend/data/
+# 测试导出
+*.xlsx
+# syntax checker 自生成的 stub
+scripts/check-syntax.stub.js
+to_do.md

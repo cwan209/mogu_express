@@ -29,6 +29,7 @@ export interface Product {
   coverFileId: string;
   imageFileIds: string[];
   categoryIds: string[];
+  section?: string | null;    // 团内分组,空/null 表示"其他"
   price: number;          // cents
   stock: number;
   sold: number;

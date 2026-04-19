@@ -57,6 +57,7 @@ async function create({ payload }) {
   if (!tuanRes || !tuanRes.data) return { code: 1, message: 'tuan not found' };
 
   const now = new Date();
+  const rawSection = (payload.section || '').trim();
   const doc = {
     tuanId: payload.tuanId,
     title: payload.title,
@@ -64,6 +65,7 @@ async function create({ payload }) {
     coverFileId: payload.coverFileId || '',
     imageFileIds: payload.imageFileIds || [],
     categoryIds: payload.categoryIds || [],
+    section: rawSection || null,         // 团内分组,空存 null
     price: Number(payload.price) | 0,
     stock: Number(payload.stock) | 0,
     sold: 0,
@@ -99,6 +101,11 @@ async function update({ id, patch }) {
   const data = { ...patch, updatedAt: new Date() };
   delete data._id;
   delete data.sold;
+  // section:trim 后空串当作 null(清空分组)
+  if ('section' in data) {
+    const s = (data.section || '').trim();
+    data.section = s || null;
+  }
   await db.collection('products').doc(id).update({ data });
   return { code: 0 };
 }

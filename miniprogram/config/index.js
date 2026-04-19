@@ -14,7 +14,7 @@ module.exports = {
   //   两者都 false             → 走微信云开发 cloud.callFunction(需 cloudEnvId,测试号不可)
   useMock: false,
   useHttpBackend: true,
-  httpApiBase: 'http://192.168.20.11:4000',   // ← Mac LAN IP, 真机模拟器都通; 模拟器 also OK localhost
+  httpApiBase: 'http://localhost:4000',   // 开发者工具模拟器专用;真机扫码需改成 Mac 局域网 IP
 
   // mock 模式下是否模拟"需要支付"流程(显示付款页 + 模拟支付按钮)
   // true 的话 → mock.createOrder 产出 pending_pay 订单 + payParams.__stub
