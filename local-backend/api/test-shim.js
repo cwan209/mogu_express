@@ -168,9 +168,15 @@ function freshSeed() {
       { _id: 'tuan_002', status: 'scheduled', endAt: new Date(Date.now() + 172800e3), title: 'Tuan 2', createdAt: new Date(), productCount: 0 },
       { _id: 'tuan_003', status: 'closed',    endAt: new Date(Date.now() - 86400e3), title: 'Tuan 3', createdAt: new Date(), productCount: 0 },
     ],
+    // catalog
     products: [
-      { _id: 'p1', tuanId: 'tuan_001', sort: 1, title: 'P1', price: 100, stock: 10, sold: 0, participantCount: 0, coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
-      { _id: 'p2', tuanId: 'tuan_001', sort: 2, title: 'P2', price: 200, stock: 5, sold: 2, participantCount: 0, coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+      { _id: 'p1', title: 'P1', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+      { _id: 'p2', title: 'P2', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+    ],
+    // team-specific instances
+    tuan_items: [
+      { _id: 'ti_p1_tuan_001', tuanId: 'tuan_001', productId: 'p1', price: 100, stock: 10, sold: 0, sort: 1, section: null, participantCount: 0 },
+      { _id: 'ti_p2_tuan_001', tuanId: 'tuan_001', productId: 'p2', price: 200, stock: 5,  sold: 2, sort: 2, section: null, participantCount: 0 },
     ],
     users: [], admins: [], carts: [], addresses: [], orders: [],
     pay_logs: [], participant_index: [], categories: [],
@@ -239,7 +245,7 @@ test('createOrder requirePay=true 返 pending_pay + stub payParams', async () =>
   });
   shim.__setContext({ OPENID: 'u1' });
   const r = await requireCf('createOrder').main({
-    items: [{ productId: 'p1', quantity: 2 }, { productId: 'p2', quantity: 1 }],
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 2 }, { tuanItemId: 'ti_p2_tuan_001', quantity: 1 }],
     addressId: 'addr1', remark: 't', requirePay: true,
   }, {});
   assert.equal(r.code, 0);
@@ -259,7 +265,7 @@ test('createOrder requirePay=false 直接 paid(legacy 兼容)', async () => {
   });
   shim.__setContext({ OPENID: 'u1' });
   const r = await requireCf('createOrder').main({
-    items: [{ productId: 'p1', quantity: 1 }],
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }],
     addressId: 'addr1', requirePay: false,
   }, {});
   assert.equal(r.code, 0);
@@ -279,7 +285,7 @@ test('createOrder 库存不足时拒绝', async () => {
   // createOrder throws { code: 6, message: '...' } (plain object, not Error)
   await assert.rejects(
     requireCf('createOrder').main({
-      items: [{ productId: 'p1', quantity: 999 }],
+      items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 999 }],
       addressId: 'addr1', requirePay: false,
     }, {}),
     (err) => err && err.code === 6 && /库存不足/.test(err.message || ''),
@@ -297,7 +303,7 @@ test('cancelOrder 仅 pending_pay 可取消(paid 拒绝)', async () => {
 
   // 先做一个 paid 订单
   const r1 = await requireCf('createOrder').main({
-    items: [{ productId: 'p1', quantity: 1 }],
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }],
     addressId: 'addr1', requirePay: false,
   }, {});
   const r2 = await requireCf('cancelOrder').main({ orderId: r1.order._id }, {});
@@ -313,7 +319,7 @@ test('simulatePay 把 pending_pay 订单变 paid', async () => {
   });
   shim.__setContext({ OPENID: 'u1' });
   const r1 = await requireCf('createOrder').main({
-    items: [{ productId: 'p1', quantity: 1 }],
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }],
     addressId: 'addr1', requirePay: true,
   }, {});
   assert.equal(r1.order.payStatus, 'pending');
@@ -331,7 +337,7 @@ test('queryHuepayOrder 已支付订单返 source=local 短路', async () => {
   });
   shim.__setContext({ OPENID: 'u1' });
   const r1 = await requireCf('createOrder').main({
-    items: [{ productId: 'p1', quantity: 1 }], addressId: 'addr1', requirePay: false,
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }], addressId: 'addr1', requirePay: false,
   }, {});
   const q = await requireCf('queryHuepayOrder').main({ orderId: r1.order._id }, {});
   assert.equal(q.code, 0);
@@ -348,7 +354,7 @@ test('payCallback 幂等(已 paid 订单重放被忽略)', async () => {
   });
   shim.__setContext({ OPENID: 'u1' });
   const r1 = await requireCf('createOrder').main({
-    items: [{ productId: 'p1', quantity: 1 }], addressId: 'addr1', requirePay: true,
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }], addressId: 'addr1', requirePay: true,
   }, {});
   await requireCf('_dev/simulatePay').main({ orderId: r1.order._id }, {});
 
@@ -458,10 +464,11 @@ test('_admin/productCRUD create 支持 section 字段', async () => {
   });
   assert.equal(r.code, 0);
   assert.ok(r._id);
-  // 读回来确认 trim + 落库
+  assert.ok(r.tuanItemId);
+  // 读回来确认 trim + 落库(tuanId 模式返回 joined view,_id=tuanItemId)
   const list = await requireCf('_admin/productCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
-  const found = list.items.find((p) => p._id === r._id);
-  assert.ok(found, 'new product should be in list');
+  const found = list.items.find((p) => p.productId === r._id);
+  assert.ok(found, 'new tuan_item should be in list');
   assert.equal(found.section, '测试分组');
 });
 
@@ -486,28 +493,101 @@ test('_admin/productCRUD create section 空串存 null', async () => {
   });
   assert.equal(r.code, 0);
   const list = await requireCf('_admin/productCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
-  const found = list.items.find((p) => p._id === r._id);
+  const found = list.items.find((p) => p.productId === r._id);
   assert.equal(found.section, null);
 });
 
-test('_admin/productCRUD update section 能清空(传空串→null)', async () => {
+test('_admin/tuanItemCRUD update section 能清空(传空串→null)', async () => {
   const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
-  // 先建一个有 section 的产品
   reset({
     admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
     products: [
-      { _id: 'px', tuanId: 'tuan_001', sort: 1, title: 'X', price: 100, stock: 10, sold: 0, section: '旧分组', categoryIds: [], participantCount: 0, coverFileId: '', imageFileIds: [], description: '' },
+      { _id: 'px', title: 'X', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+    ],
+    tuan_items: [
+      { _id: 'ti_px', tuanId: 'tuan_001', productId: 'px', price: 100, stock: 10, sold: 0, sort: 1, section: '旧分组', participantCount: 0 },
     ],
   });
   const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
   shim.__setContext({ OPENID: null });
-  const r = await requireCf('_admin/productCRUD').main({
-    action: 'update', token, id: 'px', patch: { section: '' },
+  const r = await requireCf('_admin/tuanItemCRUD').main({
+    action: 'update', token, id: 'ti_px', patch: { section: '' },
   });
   assert.equal(r.code, 0);
-  const list = await requireCf('_admin/productCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
-  const found = list.items.find((p) => p._id === 'px');
+  const list = await requireCf('_admin/tuanItemCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
+  const found = list.items.find((p) => p._id === 'ti_px');
   assert.equal(found.section, null);
+});
+
+test('_admin/tuanItemCRUD copyFromTuan 批量复制实例,sold 重置', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    tuans: [
+      { _id: 'src', status: 'closed', endAt: new Date(), title: 'Src', productCount: 2, createdAt: new Date() },
+      { _id: 'dst', status: 'draft',  endAt: new Date(Date.now() + 86400e3), title: 'Dst', productCount: 0, createdAt: new Date() },
+    ],
+    products: [
+      { _id: 'px', title: 'X', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+      { _id: 'py', title: 'Y', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+    ],
+    tuan_items: [
+      { _id: 'ti_src_px', tuanId: 'src', productId: 'px', price: 100, stock: 10, sold: 7, sort: 1, section: 'A', participantCount: 5 },
+      { _id: 'ti_src_py', tuanId: 'src', productId: 'py', price: 200, stock: 20, sold: 3, sort: 2, section: 'B', participantCount: 2 },
+    ],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/tuanItemCRUD').main({
+    action: 'copyFromTuan', token, sourceTuanId: 'src', targetTuanId: 'dst',
+  });
+  assert.equal(r.code, 0);
+  assert.equal(r.copied, 2);
+  assert.equal(r.skipped, 0);
+  const list = await requireCf('_admin/tuanItemCRUD').main({ action: 'list', token, tuanId: 'dst' });
+  assert.equal(list.items.length, 2);
+  // sold + participantCount 重置
+  for (const it of list.items) {
+    assert.equal(it.sold, 0);
+    assert.equal(it.participantCount, 0);
+  }
+  // price/section 克隆
+  const copiedPx = list.items.find((i) => i.productId === 'px');
+  assert.equal(copiedPx.price, 100);
+  assert.equal(copiedPx.section, 'A');
+});
+
+test('_admin/tuanItemCRUD copyFromTuan 跳过已有同 productId', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    tuans: [
+      { _id: 'src', status: 'closed', endAt: new Date(), title: 'Src', productCount: 2, createdAt: new Date() },
+      { _id: 'dst', status: 'draft',  endAt: new Date(Date.now() + 86400e3), title: 'Dst', productCount: 1, createdAt: new Date() },
+    ],
+    products: [
+      { _id: 'px', title: 'X', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+      { _id: 'py', title: 'Y', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+    ],
+    tuan_items: [
+      { _id: 'ti_src_px', tuanId: 'src', productId: 'px', price: 100, stock: 10, sold: 0, sort: 1, section: 'A', participantCount: 0 },
+      { _id: 'ti_src_py', tuanId: 'src', productId: 'py', price: 200, stock: 20, sold: 0, sort: 2, section: 'B', participantCount: 0 },
+      // dst 已有 px
+      { _id: 'ti_dst_px', tuanId: 'dst', productId: 'px', price: 150, stock: 5, sold: 0, sort: 5, section: 'X', participantCount: 0 },
+    ],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/tuanItemCRUD').main({
+    action: 'copyFromTuan', token, sourceTuanId: 'src', targetTuanId: 'dst',
+  });
+  assert.equal(r.code, 0);
+  assert.equal(r.copied, 1);     // 只复制 py
+  assert.equal(r.skipped, 1);    // px 已存在
+  // dst 的 px 保持原价 150
+  const dst = await requireCf('_admin/tuanItemCRUD').main({ action: 'list', token, tuanId: 'dst' });
+  const px = dst.items.find((i) => i.productId === 'px');
+  assert.equal(px.price, 150);
 });
 
 // ── 地址校验(addressValidate.js)— 面向中国大陆用户 ──

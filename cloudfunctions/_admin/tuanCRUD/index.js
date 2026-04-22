@@ -113,10 +113,10 @@ async function update({ id, patch }) {
 
 async function remove({ id }) {
   if (!id) return { code: 1, message: 'id required' };
-  // 有商品就拒绝
-  const prod = await db.collection('products').where({ tuanId: id }).limit(1).get();
-  if (prod.data && prod.data.length) {
-    return { code: 1, message: '团下还有商品,请先删除或迁移' };
+  // 有商品实例就拒绝
+  const items = await db.collection('tuan_items').where({ tuanId: id }).limit(1).get();
+  if (items.data && items.data.length) {
+    return { code: 1, message: '团下还有商品,请先移除或迁移' };
   }
   await db.collection('tuans').doc(id).remove();
   return { code: 0 };

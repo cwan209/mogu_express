@@ -8,9 +8,11 @@ function getCart() {
   return callFunction('getCart');
 }
 
-function upsertCart({ productId, quantity }) {
-  if (config.useMock) return mock.upsertCart({ productId, quantity });
-  return callFunction('upsertCart', { productId, quantity });
+function upsertCart({ tuanItemId, productId, quantity }) {
+  // 向后兼容:老调用可能传 productId(历史上 _id 即 productId)
+  const id = tuanItemId || productId;
+  if (config.useMock) return mock.upsertCart({ tuanItemId: id, productId: id, quantity });
+  return callFunction('upsertCart', { tuanItemId: id, quantity });
 }
 
 function clearCart() {

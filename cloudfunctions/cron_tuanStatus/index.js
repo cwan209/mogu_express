@@ -61,9 +61,10 @@ exports.main = async () => {
           const oDoc = await tx.collection('orders').doc(order._id).get();
           if (!oDoc.data || oDoc.data.status !== 'pending_pay') return;
           for (const it of oDoc.data.items || []) {
-            await tx.collection('products').doc(it.productId).update({
+            const tuanItemId = it.tuanItemId || it.productId;
+            await tx.collection('tuan_items').doc(tuanItemId).update({
               data: { sold: _.inc(-it.quantity), updatedAt: now },
-            });
+            }).catch((err) => console.warn('[cron_tuanStatus] rollback failed for', tuanItemId, err.message));
           }
           await tx.collection('orders').doc(order._id).update({
             data: {

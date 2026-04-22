@@ -107,11 +107,12 @@ exports.main = async (event) => {
         },
       });
 
-      // 累加每个商品的 participantCount
+      // 累加每个 tuan_item 的 participantCount
       for (const it of order.items || []) {
-        await tx.collection('products').doc(it.productId).update({
+        const tuanItemId = it.tuanItemId || it.productId; // 兼容老订单快照
+        await tx.collection('tuan_items').doc(tuanItemId).update({
           data: { participantCount: _.inc(1), updatedAt: now },
-        });
+        }).catch((err) => console.warn('[payCallback] inc participantCount failed for', tuanItemId, err.message));
       }
     });
   } catch (err) {
@@ -129,9 +130,11 @@ exports.main = async (event) => {
   try {
     const user = order.userSnapshot || {};
     for (const it of order.items || []) {
+      const tuanItemId = it.tuanItemId || it.productId;
       await db.collection('participant_index').add({
         data: {
-          _id: `${it.productId}_${order._id}`,
+          _id: `${tuanItemId}_${order._id}`,
+          tuanItemId,
           productId: it.productId,
           orderId: order._id,
           _openid: order._openid,

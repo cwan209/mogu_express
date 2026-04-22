@@ -19,9 +19,10 @@ exports.main = async (event) => {
       if (order.status !== 'pending_pay') throw { code: 3, message: '仅待支付订单可取消' };
 
       for (const it of order.items) {
-        await transaction.collection('products').doc(it.productId).update({
+        const tuanItemId = it.tuanItemId || it.productId; // 兼容老订单快照
+        await transaction.collection('tuan_items').doc(tuanItemId).update({
           data: { sold: _.inc(-it.quantity), updatedAt: new Date() },
-        });
+        }).catch((err) => console.warn('[cancelOrder] rollback failed for', tuanItemId, err.message));
       }
 
       await transaction.collection('orders').doc(orderId).update({

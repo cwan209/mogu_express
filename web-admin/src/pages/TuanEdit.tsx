@@ -3,7 +3,8 @@ import { Alert, Card, Checkbox, Form, Input, DatePicker, Select, Button, message
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import { createTuan, getTuan, listTuans, updateTuan } from '../api/tuan';
-import { createProduct, listProducts } from '../api/product';
+import { listProducts } from '../api/product';
+import { copyTuanItems } from '../api/tuanItem';
 import type { Tuan, TuanStatus } from '../types';
 import ImageUploader from '../components/ImageUploader';
 
@@ -102,34 +103,14 @@ export default function TuanEdit() {
 
       const { _id: newId } = await createTuan(payload);
 
-      // 复制商品
+      // 复制团内商品实例(新模型:不克隆 product 文档,只新建 tuan_item 引用同 productId)
       if (sourceTuanId && copyProducts) {
         const hide = message.loading('正在复制商品...', 0);
         try {
-          const prods = await listProducts({ tuanId: sourceTuanId });
-          let ok = 0;
-          for (const p of prods) {
-            try {
-              await createProduct({
-                tuanId: newId,
-                title: p.title,
-                description: p.description || '',
-                coverFileId: p.coverFileId || '',
-                imageFileIds: p.imageFileIds || [],
-                categoryIds: p.categoryIds || [],
-                section: p.section || null,
-                price: p.price,
-                stock: p.stock,
-                sort: p.sort,
-              } as any);
-              ok++;
-            } catch (e: any) {
-              // eslint-disable-next-line no-console
-              console.warn('复制商品失败:', p.title, e?.message);
-            }
-          }
+          const { copied, skipped } = await copyTuanItems(sourceTuanId, newId);
           hide();
-          message.success(`创建成功,复制了 ${ok}/${prods.length} 件商品`);
+          const msg = `创建成功,复制了 ${copied} 件商品` + (skipped ? `,跳过 ${skipped} 件已存在` : '');
+          message.success(msg);
         } catch (e: any) {
           hide();
           message.warning('团已创建,但复制商品失败:' + (e?.message || ''));

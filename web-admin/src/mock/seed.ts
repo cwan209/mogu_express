@@ -1,5 +1,10 @@
 // Seed 数据 — 首次加载 mock 存储时写入 localStorage,后续仅用内存副本
-import type { Tuan, Product, Category, Participant, Order } from '../types';
+//
+// 数据模型:
+//   seedCatalog  — 商品库(CatalogProduct)
+//   seedTuanItems — 团内实例(TuanItem)
+//   seedOrders   — 订单快照里 items 仍是旧形态(order 历史不迁移)
+import type { Tuan, CatalogProduct, TuanItem, Category, Participant, Order } from '../types';
 
 const now = Date.now();
 const HOUR = 3600 * 1000;
@@ -7,7 +12,6 @@ const DAY = 24 * HOUR;
 
 const isoOffset = (offsetMs: number) => new Date(now + offsetMs).toISOString();
 
-// Mock 封面图:真实 Unsplash 免费商用图片;上线前换商家上传的真图
 const IMG = {
   broccoli:   'https://images.unsplash.com/photo-1518164147695-36c13dd568f5?w=600&h=600&fit=crop',
   spinach:    'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=600&h=600&fit=crop',
@@ -33,6 +37,7 @@ const IMG = {
   dairy:      'https://images.unsplash.com/photo-1552767059-ce182ead6c1b?w=800&h=450&fit=crop',
   cny:        'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&h=450&fit=crop',
 };
+
 const avatar = (seed: string) => {
   const colors = ['F59E0B', '10B981', '3B82F6', '8B5CF6', 'EC4899', 'F97316'];
   let h = 0;
@@ -49,160 +54,139 @@ export const seedCategories: Category[] = [
 ];
 
 export const seedTuans: Tuan[] = [
-  {
-    _id: 'tuan_001',
-    title: '本周生鲜团 · 墨尔本周三截团',
+  { _id: 'tuan_001', title: '本周生鲜团 · 墨尔本周三截团',
     description: '澳洲本地产地直供,当周采摘。周三 18:00 截团,周五起自送上门。',
     coverFileId: IMG.fresh,
-    startAt: isoOffset(-2 * DAY),
-    endAt: isoOffset(2 * DAY),
-    status: 'on_sale',
-    productCount: 8,
-    createdAt: isoOffset(-3 * DAY),
-    updatedAt: isoOffset(-1 * HOUR),
-  },
-  {
-    _id: 'tuan_002',
-    title: '周末烧烤肉类团',
+    startAt: isoOffset(-2 * DAY), endAt: isoOffset(2 * DAY),
+    status: 'on_sale', productCount: 8,
+    createdAt: isoOffset(-3 * DAY), updatedAt: isoOffset(-1 * HOUR) },
+  { _id: 'tuan_002', title: '周末烧烤肉类团',
     description: '澳洲和牛 / 羊排 / 鸡翅,周六前截团。',
     coverFileId: IMG.bbq,
-    startAt: isoOffset(-1 * DAY),
-    endAt: isoOffset(5 * DAY),
-    status: 'on_sale',
-    productCount: 5,
-    createdAt: isoOffset(-2 * DAY),
-    updatedAt: isoOffset(-1 * HOUR),
-  },
-  {
-    _id: 'tuan_003',
-    title: '下周乳制品预订团(即将开团)',
+    startAt: isoOffset(-1 * DAY), endAt: isoOffset(5 * DAY),
+    status: 'on_sale', productCount: 5,
+    createdAt: isoOffset(-2 * DAY), updatedAt: isoOffset(-1 * HOUR) },
+  { _id: 'tuan_003', title: '下周乳制品预订团(即将开团)',
     description: 'A2 牛奶、Pauls 酸奶、手工奶酪。下周一开团。',
     coverFileId: IMG.dairy,
-    startAt: isoOffset(2 * DAY),
-    endAt: isoOffset(9 * DAY),
-    status: 'scheduled',
-    productCount: 5,
-    createdAt: isoOffset(-1 * HOUR),
-    updatedAt: isoOffset(-1 * HOUR),
-  },
-  {
-    _id: 'tuan_004',
-    title: '已结束 · 上周年货团',
+    startAt: isoOffset(2 * DAY), endAt: isoOffset(9 * DAY),
+    status: 'scheduled', productCount: 5,
+    createdAt: isoOffset(-1 * HOUR), updatedAt: isoOffset(-1 * HOUR) },
+  { _id: 'tuan_004', title: '已结束 · 上周年货团',
     description: '历史归档团,不在前台展示。',
     coverFileId: IMG.cny,
-    startAt: isoOffset(-10 * DAY),
-    endAt: isoOffset(-3 * DAY),
-    status: 'closed',
-    productCount: 1,
-    createdAt: isoOffset(-12 * DAY),
-    updatedAt: isoOffset(-3 * DAY),
-  },
+    startAt: isoOffset(-10 * DAY), endAt: isoOffset(-3 * DAY),
+    status: 'closed', productCount: 1,
+    createdAt: isoOffset(-12 * DAY), updatedAt: isoOffset(-3 * DAY) },
 ];
 
-// Shorthand 助记
-const D = { createdAt: isoOffset(-2 * DAY), updatedAt: isoOffset(-1 * HOUR) };
+const D  = { createdAt: isoOffset(-2 * DAY), updatedAt: isoOffset(-1 * HOUR) };
 const DN = { createdAt: isoOffset(-1 * HOUR), updatedAt: isoOffset(-1 * HOUR) };
 
-export const seedProducts: Product[] = [
-  // ═══ tuan_001 · 生鲜团 ═══
-  { _id: 'prod_100', tuanId: 'tuan_001', title: '冷链运费(必拍)',
+// ────── 商品库 ──────
+export const seedCatalog: CatalogProduct[] = [
+  { _id: 'prod_100', title: '冷链运费(必拍)',
     description: '墨尔本市区冷链配送,每单 1 份。非配送区域请勿下单。',
-    coverFileId: IMG.shipping, imageFileIds: [], categoryIds: [],
-    section: '运费必拍项',
-    price: 1500, stock: 999, sold: 42, sort: 0, participantCount: 42, ...D },
-  { _id: 'prod_101', tuanId: 'tuan_001', title: '澳洲本地有机西兰花',
+    coverFileId: IMG.shipping, imageFileIds: [], categoryIds: [], ...D },
+  { _id: 'prod_101', title: '澳洲本地有机西兰花',
     description: '昆士兰产地直送,每袋约 500g。',
     coverFileId: IMG.broccoli, imageFileIds: [IMG.broccoli, IMG.fresh],
-    categoryIds: ['cat_fresh'], section: '蔬菜',
-    price: 599, stock: 50, sold: 12, sort: 10, participantCount: 8, ...D },
-  { _id: 'prod_104', tuanId: 'tuan_001', title: '有机菠菜',
+    categoryIds: ['cat_fresh'], ...D },
+  { _id: 'prod_104', title: '有机菠菜',
     description: '本地农场有机种植,200g 袋装,嫩叶。',
-    coverFileId: IMG.spinach, imageFileIds: [], categoryIds: ['cat_fresh'],
-    section: '蔬菜',
-    price: 450, stock: 40, sold: 8, sort: 11, participantCount: 6, ...D },
-  { _id: 'prod_105', tuanId: 'tuan_001', title: '樱桃番茄',
+    coverFileId: IMG.spinach, imageFileIds: [], categoryIds: ['cat_fresh'], ...D },
+  { _id: 'prod_105', title: '樱桃番茄',
     description: '500g,皮薄汁多,孩子爱吃。',
-    coverFileId: IMG.tomato, imageFileIds: [], categoryIds: ['cat_fresh'],
-    section: '蔬菜',
-    price: 520, stock: 60, sold: 20, sort: 12, participantCount: 15, ...D },
-  { _id: 'prod_102', tuanId: 'tuan_001', title: '塔斯马尼亚蓝莓',
+    coverFileId: IMG.tomato, imageFileIds: [], categoryIds: ['cat_fresh'], ...D },
+  { _id: 'prod_102', title: '塔斯马尼亚蓝莓',
     description: '125g 一盒,果大味甜,空运直达。',
     coverFileId: IMG.blueberry, imageFileIds: [IMG.blueberry],
-    categoryIds: ['cat_fresh'], section: '浆果',
-    price: 899, stock: 30, sold: 18, sort: 20, participantCount: 14, ...D },
-  { _id: 'prod_106', tuanId: 'tuan_001', title: '本地有机草莓',
+    categoryIds: ['cat_fresh'], ...D },
+  { _id: 'prod_106', title: '本地有机草莓',
     description: '250g 盒装,维州当季新摘。',
-    coverFileId: IMG.strawberry, imageFileIds: [], categoryIds: ['cat_fresh'],
-    section: '浆果',
-    price: 680, stock: 40, sold: 22, sort: 21, participantCount: 18, ...D },
-  { _id: 'prod_103', tuanId: 'tuan_001', title: '新西兰蜜瓜',
+    coverFileId: IMG.strawberry, imageFileIds: [], categoryIds: ['cat_fresh'], ...D },
+  { _id: 'prod_103', title: '新西兰蜜瓜',
     description: '一整颗,约 2kg。',
-    coverFileId: IMG.honeydew, imageFileIds: [],
-    categoryIds: ['cat_fresh'], section: '水果',
-    price: 1280, stock: 20, sold: 5, sort: 30, participantCount: 5, ...D },
-  { _id: 'prod_107', tuanId: 'tuan_001', title: 'Hass 牛油果 4 个',
+    coverFileId: IMG.honeydew, imageFileIds: [], categoryIds: ['cat_fresh'], ...D },
+  { _id: 'prod_107', title: 'Hass 牛油果 4 个',
     description: '即食熟度,软硬适中。',
-    coverFileId: IMG.avocado, imageFileIds: [], categoryIds: ['cat_fresh'],
-    section: '水果',
-    price: 980, stock: 35, sold: 11, sort: 31, participantCount: 9, ...D },
+    coverFileId: IMG.avocado, imageFileIds: [], categoryIds: ['cat_fresh'], ...D },
 
-  // ═══ tuan_002 · 肉类团 ═══
-  { _id: 'prod_201', tuanId: 'tuan_002', title: '澳洲 M5 和牛肩肉 500g',
+  { _id: 'prod_201', title: '澳洲 M5 和牛肩肉 500g',
     description: '冷冻真空包装,BBQ 佳选。',
-    coverFileId: IMG.wagyu, imageFileIds: [], categoryIds: ['cat_meat'],
-    section: '牛肉',
-    price: 3880, stock: 15, sold: 6, sort: 10, participantCount: 4, ...D },
-  { _id: 'prod_203', tuanId: 'tuan_002', title: 'M5 和牛西冷 300g',
+    coverFileId: IMG.wagyu, imageFileIds: [], categoryIds: ['cat_meat'], ...D },
+  { _id: 'prod_203', title: 'M5 和牛西冷 300g',
     description: '雪花分布均匀,适合煎牛排。',
-    coverFileId: IMG.steak, imageFileIds: [], categoryIds: ['cat_meat'],
-    section: '牛肉',
-    price: 4880, stock: 12, sold: 3, sort: 11, participantCount: 3, ...D },
-  { _id: 'prod_202', tuanId: 'tuan_002', title: '腌制羊排 6 根',
+    coverFileId: IMG.steak, imageFileIds: [], categoryIds: ['cat_meat'], ...D },
+  { _id: 'prod_202', title: '腌制羊排 6 根',
     description: '预腌制好,开袋即烤。',
-    coverFileId: IMG.lamb, imageFileIds: [], categoryIds: ['cat_meat'],
-    section: '羊肉',
-    price: 2580, stock: 25, sold: 9, sort: 20, participantCount: 7, ...D },
-  { _id: 'prod_204', tuanId: 'tuan_002', title: '新西兰羊肉卷 500g',
+    coverFileId: IMG.lamb, imageFileIds: [], categoryIds: ['cat_meat'], ...D },
+  { _id: 'prod_204', title: '新西兰羊肉卷 500g',
     description: '火锅涮煮首选,切片厚度适中。',
-    coverFileId: IMG.lambroll, imageFileIds: [], categoryIds: ['cat_meat'],
-    section: '羊肉',
-    price: 1880, stock: 30, sold: 14, sort: 21, participantCount: 11, ...D },
-  { _id: 'prod_205', tuanId: 'tuan_002', title: 'BBQ 烤翅 1kg',
+    coverFileId: IMG.lambroll, imageFileIds: [], categoryIds: ['cat_meat'], ...D },
+  { _id: 'prod_205', title: 'BBQ 烤翅 1kg',
     description: '秘制腌料,开袋即烤。',
-    coverFileId: IMG.chicken, imageFileIds: [], categoryIds: ['cat_meat'],
-    section: '禽类',
-    price: 1680, stock: 40, sold: 17, sort: 30, participantCount: 13, ...D },
+    coverFileId: IMG.chicken, imageFileIds: [], categoryIds: ['cat_meat'], ...D },
 
-  // ═══ tuan_003 · 乳制品团(scheduled)═══
-  { _id: 'prod_301', tuanId: 'tuan_003', title: 'A2 全脂牛奶 2L',
+  { _id: 'prod_301', title: 'A2 全脂牛奶 2L',
     description: '', coverFileId: IMG.milk, imageFileIds: [],
-    categoryIds: ['cat_dairy'], section: '液态奶',
-    price: 680, stock: 100, sold: 0, sort: 10, participantCount: 0, ...DN },
-  { _id: 'prod_303', tuanId: 'tuan_003', title: '脱脂牛奶 2L',
+    categoryIds: ['cat_dairy'], ...DN },
+  { _id: 'prod_303', title: '脱脂牛奶 2L',
     description: '低脂健康,早餐搭配首选。',
-    coverFileId: IMG.skim, imageFileIds: [], categoryIds: ['cat_dairy'],
-    section: '液态奶',
-    price: 580, stock: 100, sold: 0, sort: 11, participantCount: 0, ...DN },
-  { _id: 'prod_304', tuanId: 'tuan_003', title: '燕麦奶 1L',
+    coverFileId: IMG.skim, imageFileIds: [], categoryIds: ['cat_dairy'], ...DN },
+  { _id: 'prod_304', title: '燕麦奶 1L',
     description: '植物基,无乳糖。',
-    coverFileId: IMG.oatmilk, imageFileIds: [], categoryIds: ['cat_dairy'],
-    section: '液态奶',
-    price: 720, stock: 60, sold: 0, sort: 12, participantCount: 0, ...DN },
-  { _id: 'prod_302', tuanId: 'tuan_003', title: 'Pauls 希腊酸奶 1kg',
+    coverFileId: IMG.oatmilk, imageFileIds: [], categoryIds: ['cat_dairy'], ...DN },
+  { _id: 'prod_302', title: 'Pauls 希腊酸奶 1kg',
     description: '', coverFileId: IMG.yogurt, imageFileIds: [],
-    categoryIds: ['cat_dairy'], section: '发酵乳',
-    price: 780, stock: 80, sold: 0, sort: 20, participantCount: 0, ...DN },
-  { _id: 'prod_305', tuanId: 'tuan_003', title: 'Chobani 酸奶 6 连杯',
+    categoryIds: ['cat_dairy'], ...DN },
+  { _id: 'prod_305', title: 'Chobani 酸奶 6 连杯',
     description: '低脂草莓/蓝莓混合。',
-    coverFileId: IMG.greekyogurt, imageFileIds: [], categoryIds: ['cat_dairy'],
-    section: '发酵乳',
-    price: 880, stock: 70, sold: 0, sort: 21, participantCount: 0, ...DN },
+    coverFileId: IMG.greekyogurt, imageFileIds: [], categoryIds: ['cat_dairy'], ...DN },
 
-  // ═══ tuan_004 · 已关闭(归档)═══
-  { _id: 'prod_401', tuanId: 'tuan_004', title: '(已结束)年货礼盒',
-    description: '',
-    coverFileId: IMG.gift, imageFileIds: [], categoryIds: ['cat_snack'],
-    price: 5888, stock: 40, sold: 40, sort: 1, participantCount: 35,
+  { _id: 'prod_401', title: '(已结束)年货礼盒',
+    description: '', coverFileId: IMG.gift, imageFileIds: [], categoryIds: ['cat_snack'],
+    createdAt: isoOffset(-12 * DAY), updatedAt: isoOffset(-3 * DAY) },
+];
+
+// ────── 团内实例 ──────
+const TI = (productId: string, tuanId: string, price: number, stock: number, sold: number, sort: number, section: string | null, participantCount = 0): TuanItem => ({
+  _id: `ti_${productId}_${tuanId}`,
+  tuanId, productId,
+  price, stock, sold, sort, section,
+  participantCount,
+  ...D,
+});
+
+export const seedTuanItems: TuanItem[] = [
+  // tuan_001 生鲜
+  TI('prod_100', 'tuan_001', 1500, 999, 42,  0, '运费必拍项', 42),
+  TI('prod_101', 'tuan_001',  599,  50, 12, 10, '蔬菜',         8),
+  TI('prod_104', 'tuan_001',  450,  40,  8, 11, '蔬菜',         6),
+  TI('prod_105', 'tuan_001',  520,  60, 20, 12, '蔬菜',        15),
+  TI('prod_102', 'tuan_001',  899,  30, 18, 20, '浆果',        14),
+  TI('prod_106', 'tuan_001',  680,  40, 22, 21, '浆果',        18),
+  TI('prod_103', 'tuan_001', 1280,  20,  5, 30, '水果',         5),
+  TI('prod_107', 'tuan_001',  980,  35, 11, 31, '水果',         9),
+
+  // tuan_002 肉类
+  TI('prod_201', 'tuan_002', 3880, 15,  6, 10, '牛肉',  4),
+  TI('prod_203', 'tuan_002', 4880, 12,  3, 11, '牛肉',  3),
+  TI('prod_202', 'tuan_002', 2580, 25,  9, 20, '羊肉',  7),
+  TI('prod_204', 'tuan_002', 1880, 30, 14, 21, '羊肉', 11),
+  TI('prod_205', 'tuan_002', 1680, 40, 17, 30, '禽类', 13),
+
+  // tuan_003 乳制品
+  TI('prod_301', 'tuan_003', 680, 100, 0, 10, '液态奶', 0),
+  TI('prod_303', 'tuan_003', 580, 100, 0, 11, '液态奶', 0),
+  TI('prod_304', 'tuan_003', 720,  60, 0, 12, '液态奶', 0),
+  TI('prod_302', 'tuan_003', 780,  80, 0, 20, '发酵乳', 0),
+  TI('prod_305', 'tuan_003', 880,  70, 0, 21, '发酵乳', 0),
+
+  // tuan_004(archived)
+  { _id: 'ti_prod_401_tuan_004', tuanId: 'tuan_004', productId: 'prod_401',
+    price: 5888, stock: 40, sold: 40, sort: 1, section: null,
+    participantCount: 35,
     createdAt: isoOffset(-12 * DAY), updatedAt: isoOffset(-3 * DAY) },
 ];
 
@@ -210,7 +194,6 @@ const AVATARS = [
   avatar('小明'), avatar('阿华'), avatar('周'), avatar('李'), avatar('E'), avatar('J'),
 ];
 
-// 种子订单 — 模拟已有顾客下单
 export const seedOrders: Order[] = [
   {
     _id: 'order_seed_1',
@@ -219,19 +202,11 @@ export const seedOrders: Order[] = [
     openid: 'mock_customer_a',
     userSnapshot: { name: '王小姐', phone: '0412345678' },
     items: [
-      { productId: 'prod_102', tuanId: 'tuan_001', title: '塔斯马尼亚蓝莓',
-        price: 899, quantity: 2, subtotal: 1798,
-        coverFileId: IMG.blueberry },
-      { productId: 'prod_101', tuanId: 'tuan_001', title: '澳洲本地有机西兰花',
-        price: 599, quantity: 1, subtotal: 599,
-        coverFileId: IMG.broccoli },
+      { tuanItemId: 'ti_prod_102_tuan_001', productId: 'prod_102', tuanId: 'tuan_001', title: '塔斯马尼亚蓝莓', price: 899, quantity: 2, subtotal: 1798, coverFileId: IMG.blueberry },
+      { tuanItemId: 'ti_prod_101_tuan_001', productId: 'prod_101', tuanId: 'tuan_001', title: '澳洲本地有机西兰花', price: 599, quantity: 1, subtotal: 599, coverFileId: IMG.broccoli },
     ],
     amount: 2397,
-    shipping: {
-      recipient: '王小姐', phone: '0412345678',
-      line1: '12 Bridge Rd', line2: 'Unit 3',
-      suburb: 'Richmond', state: 'VIC', postcode: '3121',
-    },
+    shipping: { recipient: '王小姐', phone: '0412345678', line1: '12 Bridge Rd', line2: 'Unit 3', suburb: 'Richmond', state: 'VIC', postcode: '3121' },
     remark: '不要香菜,谢谢',
     status: 'paid', payStatus: 'paid',
     paidAt: isoOffset(-6 * HOUR), createdAt: isoOffset(-6 * HOUR), updatedAt: isoOffset(-6 * HOUR),
@@ -243,16 +218,10 @@ export const seedOrders: Order[] = [
     openid: 'mock_customer_b',
     userSnapshot: { name: 'John Smith', phone: '0478112233' },
     items: [
-      { productId: 'prod_201', tuanId: 'tuan_002', title: '澳洲 M5 和牛肩肉 500g',
-        price: 3880, quantity: 1, subtotal: 3880,
-        coverFileId: IMG.wagyu },
+      { tuanItemId: 'ti_prod_201_tuan_002', productId: 'prod_201', tuanId: 'tuan_002', title: '澳洲 M5 和牛肩肉 500g', price: 3880, quantity: 1, subtotal: 3880, coverFileId: IMG.wagyu },
     ],
     amount: 3880,
-    shipping: {
-      recipient: 'John Smith', phone: '0478112233',
-      line1: '55 Chapel St', suburb: 'South Yarra',
-      state: 'VIC', postcode: '3141',
-    },
+    shipping: { recipient: 'John Smith', phone: '0478112233', line1: '55 Chapel St', suburb: 'South Yarra', state: 'VIC', postcode: '3141' },
     remark: '',
     status: 'paid', payStatus: 'paid',
     paidAt: isoOffset(-3 * HOUR), createdAt: isoOffset(-3 * HOUR), updatedAt: isoOffset(-3 * HOUR),
@@ -264,19 +233,11 @@ export const seedOrders: Order[] = [
     openid: 'mock_customer_c',
     userSnapshot: { name: '阿华', phone: '0400888999' },
     items: [
-      { productId: 'prod_202', tuanId: 'tuan_002', title: '腌制羊排 6 根',
-        price: 2580, quantity: 2, subtotal: 5160,
-        coverFileId: IMG.lamb },
-      { productId: 'prod_103', tuanId: 'tuan_001', title: '新西兰蜜瓜',
-        price: 1280, quantity: 1, subtotal: 1280,
-        coverFileId: IMG.honeydew },
+      { tuanItemId: 'ti_prod_202_tuan_002', productId: 'prod_202', tuanId: 'tuan_002', title: '腌制羊排 6 根', price: 2580, quantity: 2, subtotal: 5160, coverFileId: IMG.lamb },
+      { tuanItemId: 'ti_prod_103_tuan_001', productId: 'prod_103', tuanId: 'tuan_001', title: '新西兰蜜瓜', price: 1280, quantity: 1, subtotal: 1280, coverFileId: IMG.honeydew },
     ],
     amount: 6440,
-    shipping: {
-      recipient: '阿华', phone: '0400888999',
-      line1: '8 Springvale Rd', suburb: 'Glen Waverley',
-      state: 'VIC', postcode: '3150',
-    },
+    shipping: { recipient: '阿华', phone: '0400888999', line1: '8 Springvale Rd', suburb: 'Glen Waverley', state: 'VIC', postcode: '3150' },
     remark: '周五之前送到',
     status: 'shipped', payStatus: 'paid',
     paidAt: isoOffset(-2 * DAY), shippedAt: isoOffset(-1 * DAY),
@@ -289,16 +250,10 @@ export const seedOrders: Order[] = [
     openid: 'mock_customer_d',
     userSnapshot: { name: 'Emma Zhang', phone: '0455999000' },
     items: [
-      { productId: 'prod_102', tuanId: 'tuan_001', title: '塔斯马尼亚蓝莓',
-        price: 899, quantity: 3, subtotal: 2697,
-        coverFileId: IMG.blueberry },
+      { tuanItemId: 'ti_prod_102_tuan_001', productId: 'prod_102', tuanId: 'tuan_001', title: '塔斯马尼亚蓝莓', price: 899, quantity: 3, subtotal: 2697, coverFileId: IMG.blueberry },
     ],
     amount: 2697,
-    shipping: {
-      recipient: 'Emma Zhang', phone: '0455999000',
-      line1: '21 Queens Rd', suburb: 'Melbourne',
-      state: 'VIC', postcode: '3004',
-    },
+    shipping: { recipient: 'Emma Zhang', phone: '0455999000', line1: '21 Queens Rd', suburb: 'Melbourne', state: 'VIC', postcode: '3004' },
     remark: '',
     status: 'completed', payStatus: 'paid',
     paidAt: isoOffset(-4 * DAY), shippedAt: isoOffset(-3 * DAY),
@@ -311,23 +266,19 @@ export const seedOrders: Order[] = [
     openid: 'mock_customer_e',
     userSnapshot: { name: '李太', phone: '0433111222' },
     items: [
-      { productId: 'prod_101', tuanId: 'tuan_001', title: '澳洲本地有机西兰花',
-        price: 599, quantity: 5, subtotal: 2995,
-        coverFileId: IMG.broccoli },
+      { tuanItemId: 'ti_prod_101_tuan_001', productId: 'prod_101', tuanId: 'tuan_001', title: '澳洲本地有机西兰花', price: 599, quantity: 5, subtotal: 2995, coverFileId: IMG.broccoli },
     ],
     amount: 2995,
-    shipping: {
-      recipient: '李太', phone: '0433111222',
-      line1: '9 Toorak Rd', suburb: 'Toorak',
-      state: 'VIC', postcode: '3142',
-    },
+    shipping: { recipient: '李太', phone: '0433111222', line1: '9 Toorak Rd', suburb: 'Toorak', state: 'VIC', postcode: '3142' },
     remark: '',
     status: 'pending_pay', payStatus: 'pending',
     createdAt: isoOffset(-15 * 60 * 1000), updatedAt: isoOffset(-15 * 60 * 1000),
   },
 ];
 
-// 每个商品的参与者名单(M1 用假数据;M3 由 payCallback 写入 participant_index)
+// 保留旧导出名以兼容老 import
+export const seedProducts = seedCatalog;
+
 export function generateParticipants(productId: string, count: number): Participant[] {
   const list: Participant[] = [];
   const names = ['小明', '阿华', '周先生', '李太', 'Emma', 'Jason', '王师傅', 'Lucy', 'Kiki', '阿龙', 'Grace', '张姐'];

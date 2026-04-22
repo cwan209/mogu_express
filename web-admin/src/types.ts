@@ -21,22 +21,59 @@ export interface Tuan {
   updatedAt: string;
 }
 
-export interface Product {
+/**
+ * 商品库(catalog)— 独立于团。只有稳定属性。
+ * price/stock/sort/section 不在这里,而在 TuanItem 上。
+ */
+export interface CatalogProduct {
   _id: string;
+  title: string;
+  description: string;
+  coverFileId: string;
+  imageFileIds: string[];
+  categoryIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 团内商品实例 — 商品挂到某个团的价格/库存/分组。
+ */
+export interface TuanItem {
+  _id: string;
+  tuanId: string;
+  productId: string;
+  price: number;          // cents
+  stock: number;
+  sold: number;
+  sort: number;
+  section?: string | null;
+  participantCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Joined view:后端 listProducts({tuanId})/getTuanDetail 返回的扁平形态。
+ * _id = tuanItemId(兼容旧 UI 以 _id 做主键的习惯)。
+ * 保留 "Product" 这个类型名避免波及所有页面代码。
+ */
+export interface Product {
+  _id: string;                // = tuanItemId
+  tuanItemId: string;
+  productId: string;
   tuanId: string;
   title: string;
   description: string;
   coverFileId: string;
   imageFileIds: string[];
   categoryIds: string[];
-  section?: string | null;    // 团内分组,空/null 表示"其他"
-  price: number;          // cents
+  section?: string | null;
+  price: number;
   stock: number;
   sold: number;
   sort: number;
   participantCount: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Category {
@@ -74,6 +111,7 @@ export type OrderStatus =
 export type PayStatus = 'none' | 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface OrderItem {
+  tuanItemId?: string;    // 新模型加的快照字段
   productId: string;
   tuanId: string;
   title: string;
@@ -81,6 +119,7 @@ export interface OrderItem {
   quantity: number;
   subtotal: number;  // cents
   coverFileId: string;
+  section?: string | null;
 }
 
 export interface ShippingAddress {

@@ -1,0 +1,9 @@
+{
+  "name": "tuanItemCRUD",
+  "version": "1.0.0",
+  "description": "团内商品实例(tuan_items)CRUD + 跨团批量复制",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

@@ -97,7 +97,10 @@ Page({
     try {
       wx.showLoading({ title: '下单中...', mask: true });
       const resp = await orderService.createOrder({
-        items: this.data.items.map((it) => ({ productId: it.productId, quantity: it.quantity })),
+        items: this.data.items.map((it) => ({
+          tuanItemId: it.tuanItemId || it.productId,   // 新模型用 tuanItemId
+          quantity: it.quantity,
+        })),
         addressId: this.data.address._id,
         remark: this.data.remark,
         requirePay: true,    // M3 默认走支付

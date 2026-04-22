@@ -1,77 +1,109 @@
-import { useEffect, useState, useMemo } from 'react';
-import { Card, Form, Input, InputNumber, Select, Button, message, Space, AutoComplete } from 'antd';
-import { useNavigate, useParams } from 'react-router-dom';
-import { createProduct, getProduct, updateProduct, listProducts } from '../api/product';
+// ProductEdit — 根据 URL 判断编辑的是"商品库"还是"团内实例"
+//
+//   /products/new                   → 新建商品(仅目录,选填 tuanId+价格 可同时挂到某团)
+//   /products/new?tuanId=X          → 新建并挂到团 X
+//   /products/:catalogId            → 编辑商品库条目(title/描述/图/分类)
+//   /products/:tuanItemId?tuanId=X  → 编辑团内实例(价格/库存/排序/分组 + 目录字段只读显示)
+
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert, Card, Form, Input, InputNumber, Select, Button, message, Space, AutoComplete,
+} from 'antd';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  createProduct, getCatalog, listCatalog, listProducts, updateProduct,
+} from '../api/product';
+import { updateTuanItem } from '../api/tuanItem';
 import { listTuans } from '../api/tuan';
 import { listCategories } from '../api/category';
-import type { Tuan, Category, Product } from '../types';
+import type { CatalogProduct, Tuan, Category, Product } from '../types';
 import ImageUploader from '../components/ImageUploader';
 
 const { TextArea } = Input;
 
-interface FormValues {
+interface CatalogFormValues {
   title: string;
   description: string;
   coverFileId: string;
   imageFileIds: string[];
-  tuanId: string;
   categoryIds: string[];
-  section: string;         // 团内分组
+}
+interface TuanItemFormValues {
+  productId: string;
   priceDollars: number;
   stock: number;
   sort: number;
+  section: string;
 }
 
 export default function ProductEdit() {
   const nav = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const isEdit = id && id !== 'new';
-  const [form] = Form.useForm<FormValues>();
+  const [sp] = useSearchParams();
+  const tuanIdInUrl = sp.get('tuanId') || '';
+
+  const isNew = id === 'new';
+  // 判断是否是编辑团内实例:有 tuanId 且 id 看起来像 tuanItemId(以 'ti_' 开头或 URL 有 tuanId)
+  const editingTuanItem = !!tuanIdInUrl && !isNew;
+
+  const [form] = Form.useForm<CatalogFormValues>();
+  const [tiForm] = Form.useForm<TuanItemFormValues>();
+
   const [tuans, setTuans] = useState<Tuan[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
-  const [tuanId, setTuanId] = useState<string>('');
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [sameTuanProducts, setSameTuanProducts] = useState<Product[]>([]);
+  // 新建时的"挂团"附加信息
+  const [attachTuanId, setAttachTuanId] = useState<string>(tuanIdInUrl);
+  const [current, setCurrent] = useState<Product | CatalogProduct | null>(null);
 
   useEffect(() => {
-    Promise.all([listTuans(), listCategories()]).then(([ts, cs]) => {
-      setTuans(ts);
-      setCats(cs);
-    });
-    if (isEdit) {
-      getProduct(id!).then((p) => {
+    Promise.all([listTuans(), listCategories(), listCatalog()])
+      .then(([ts, cs, cat]) => { setTuans(ts); setCats(cs); setCatalog(cat); });
+
+    if (isNew) {
+      form.setFieldsValue({
+        title: '', description: '', coverFileId: '', imageFileIds: [], categoryIds: [],
+      });
+      if (tuanIdInUrl) {
+        tiForm.setFieldsValue({ productId: '', priceDollars: 9.99, stock: 20, sort: 1, section: '' });
+      }
+      return;
+    }
+
+    if (editingTuanItem) {
+      // 编辑团内实例:拉 joined view → 拆成 catalog 字段(只读回显) + tuanItem 字段(可编辑)
+      listProducts({ tuanId: tuanIdInUrl }).then((items) => {
+        const p = items.find((x) => x._id === id || x.tuanItemId === id);
+        if (!p) { message.error('团内商品不存在'); return; }
+        setCurrent(p);
         form.setFieldsValue({
-          title: p.title,
-          description: p.description,
-          coverFileId: p.coverFileId,
-          imageFileIds: p.imageFileIds || [],
-          tuanId: p.tuanId,
-          categoryIds: p.categoryIds,
-          section: p.section || '',
-          priceDollars: p.price / 100,
-          stock: p.stock,
-          sort: p.sort,
+          title: p.title, description: p.description, coverFileId: p.coverFileId,
+          imageFileIds: p.imageFileIds || [], categoryIds: p.categoryIds || [],
         });
-        setTuanId(p.tuanId);
+        tiForm.setFieldsValue({
+          productId: p.productId,
+          priceDollars: p.price / 100,
+          stock: p.stock, sort: p.sort, section: p.section || '',
+        });
       });
     } else {
-      form.setFieldsValue({
-        coverFileId: '',
-        imageFileIds: [],
-        stock: 20,
-        sort: 1,
-        priceDollars: 9.99,
-        categoryIds: [],
-        section: '',
-      } as any);
+      // 编辑商品库目录
+      getCatalog(id!).then((p) => {
+        setCurrent(p);
+        form.setFieldsValue({
+          title: p.title, description: p.description, coverFileId: p.coverFileId,
+          imageFileIds: p.imageFileIds || [], categoryIds: p.categoryIds || [],
+        });
+      });
     }
     // eslint-disable-next-line
-  }, [id]);
+  }, [id, tuanIdInUrl]);
 
-  // 当 tuanId 改变时,拉同团的 products 作为 section AutoComplete 的候选
   useEffect(() => {
-    if (!tuanId) { setSameTuanProducts([]); return; }
-    listProducts({ tuanId }).then(setSameTuanProducts).catch(() => setSameTuanProducts([]));
-  }, [tuanId]);
+    if (!attachTuanId) { setSameTuanProducts([]); return; }
+    listProducts({ tuanId: attachTuanId }).then(setSameTuanProducts).catch(() => setSameTuanProducts([]));
+  }, [attachTuanId]);
 
   const sectionOptions = useMemo(() => {
     const set = new Set<string>();
@@ -82,37 +114,55 @@ export default function ProductEdit() {
     return [...set].map((v) => ({ value: v }));
   }, [sameTuanProducts]);
 
-  const onFinish = async (v: FormValues) => {
-    const price = Math.round((v.priceDollars || 0) * 100);
-    if (price <= 0) { message.error('价格必须大于 0'); return; }
-    const imageFileIds = Array.isArray(v.imageFileIds) ? v.imageFileIds : [];
+  const onFinishCatalog = async (v: CatalogFormValues) => {
     if (v.coverFileId && v.coverFileId.startsWith('blob:')) {
-      message.error('封面图未完成上传,请等待或重新上传');
-      return;
+      message.error('封面图未完成上传'); return;
     }
-    if (imageFileIds.some((u) => u.startsWith('blob:'))) {
-      message.error('详情图未完成上传,请等待或重新上传');
-      return;
+    if ((v.imageFileIds || []).some((u) => u.startsWith('blob:'))) {
+      message.error('详情图未完成上传'); return;
     }
-    const payload = {
-      title: v.title,
-      description: v.description || '',
-      coverFileId: v.coverFileId || '',
-      imageFileIds,
-      tuanId: v.tuanId,
-      categoryIds: v.categoryIds || [],
-      section: (v.section || '').trim() || null,
-      price,
-      stock: v.stock,
-      sort: v.sort,
-    };
     try {
-      if (isEdit) {
-        await updateProduct(id!, payload);
+      if (isNew) {
+        const attach = attachTuanId ? await tiForm.validateFields() : null;
+        const payload: any = {
+          title: v.title,
+          description: v.description || '',
+          coverFileId: v.coverFileId || '',
+          imageFileIds: v.imageFileIds || [],
+          categoryIds: v.categoryIds || [],
+        };
+        if (attach) {
+          payload.tuanId = attachTuanId;
+          payload.price = Math.round((attach.priceDollars || 0) * 100);
+          payload.stock = attach.stock | 0;
+          payload.sort = attach.sort | 0;
+          payload.section = (attach.section || '').trim() || null;
+          if (payload.price <= 0) { message.error('价格必须大于 0'); return; }
+        }
+        await createProduct(payload);
+        message.success('创建成功');
+      } else if (editingTuanItem) {
+        // 两步更新:目录字段 → updateProduct(按 productId);团内字段 → updateTuanItem(按 tuanItemId)
+        const productId = (current as Product).productId;
+        await updateProduct(productId, {
+          title: v.title,
+          description: v.description || '',
+          coverFileId: v.coverFileId || '',
+          imageFileIds: v.imageFileIds || [],
+          categoryIds: v.categoryIds || [],
+        });
+        const ti = await tiForm.validateFields();
+        const price = Math.round((ti.priceDollars || 0) * 100);
+        if (price <= 0) { message.error('价格必须大于 0'); return; }
+        await updateTuanItem(id!, {
+          price, stock: ti.stock, sort: ti.sort,
+          section: (ti.section || '').trim() || null,
+        });
         message.success('保存成功');
       } else {
-        await createProduct(payload as any);
-        message.success('创建成功');
+        // 纯目录编辑
+        await updateProduct(id!, v);
+        message.success('保存成功');
       }
       nav(-1);
     } catch (e: any) {
@@ -121,80 +171,105 @@ export default function ProductEdit() {
   };
 
   return (
-    <Card title={isEdit ? '编辑商品' : '新建商品'}>
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={onFinish}
-        onValuesChange={(changed) => {
-          if ('tuanId' in changed) setTuanId(changed.tuanId);
-        }}
-        style={{ maxWidth: 640 }}
-      >
+    <Card title={
+      isNew ? '新建商品' :
+      editingTuanItem ? '编辑团内商品' : '编辑商品库条目'
+    }>
+      {!isNew && editingTuanItem && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ maxWidth: 640, marginBottom: 16 }}
+          message="此处修改会影响所有使用该商品的团"
+          description="标题/描述/图片/分类 属于商品库,改了所有团看到的都会变。价格/库存/排序/分组 只影响当前团。"
+        />
+      )}
+
+      <Form form={form} layout="vertical" onFinish={onFinishCatalog} style={{ maxWidth: 640 }}>
         <Form.Item label="商品标题" name="title" rules={[{ required: true }]}>
           <Input maxLength={40} showCount />
         </Form.Item>
         <Form.Item label="用途/描述" name="description">
           <TextArea rows={3} maxLength={500} showCount />
         </Form.Item>
-        <Form.Item
-          label="封面图"
-          name="coverFileId"
-          rules={[{ required: true, message: '请上传封面图' }]}
-        >
+        <Form.Item label="封面图" name="coverFileId" rules={[{ required: true, message: '请上传封面图' }]}>
           <ImageUploader mode="single" purpose="product_cover" />
         </Form.Item>
-        <Form.Item
-          label="详情图"
-          name="imageFileIds"
-          tooltip="最多 5 张,拖拽上传或粘贴已有图床 URL"
-        >
+        <Form.Item label="详情图" name="imageFileIds" tooltip="最多 5 张">
           <ImageUploader mode="multiple" max={5} purpose="product_image" />
         </Form.Item>
-        <Form.Item label="所属团" name="tuanId" rules={[{ required: true, message: '请选择所属团' }]}>
-          <Select
-            placeholder="选择团"
-            options={tuans.map((t) => ({ value: t._id, label: t.title }))}
-          />
+        <Form.Item label="分类(全局)" name="categoryIds">
+          <Select mode="multiple" placeholder="可多选"
+            options={cats.map((c) => ({ value: c._id, label: c.name }))} />
         </Form.Item>
-        <Form.Item
-          label="团内分组"
-          name="section"
-          tooltip="顾客在团详情页左侧 sidebar 看到的分组名(如'蔬菜'、'运费必拍项')。选了所属团后下拉出现已有分组"
-        >
-          <AutoComplete
-            options={sectionOptions}
-            placeholder={tuanId ? '输入或选择分组名(可选)' : '请先选所属团'}
-            allowClear
-            filterOption={(input, option) =>
-              (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-          />
-        </Form.Item>
-        <Form.Item label="分类(全局,跨团)" name="categoryIds">
-          <Select
-            mode="multiple"
-            placeholder="可多选"
-            options={cats.map((c) => ({ value: c._id, label: c.name }))}
-          />
-        </Form.Item>
-        <Space size={24} style={{ width: '100%' }} wrap>
-          <Form.Item label="价格 (元)" name="priceDollars" rules={[{ required: true }]}>
-            <InputNumber min={0} step={0.01} precision={2} prefix="¥" style={{ width: 160 }} />
-          </Form.Item>
-          <Form.Item label="库存" name="stock" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: 120 }} />
-          </Form.Item>
-          <Form.Item label="团内排序" name="sort">
-            <InputNumber min={0} style={{ width: 120 }} />
-          </Form.Item>
+
+        {/* 团内字段:新建 + 选了挂团,或编辑团内实例时出现 */}
+        {(isNew || editingTuanItem) && (
+          <Card
+            type="inner"
+            size="small"
+            title={editingTuanItem ? '团内字段(仅当前团)' : '同时挂到某个团(可选)'}
+            style={{ marginBottom: 24 }}
+          >
+            {isNew && (
+              <Form.Item label="挂到团">
+                <Select
+                  allowClear
+                  placeholder="不选则只加到商品库"
+                  value={attachTuanId || undefined}
+                  onChange={(v) => setAttachTuanId(v || '')}
+                  options={tuans.map((t) => ({ value: t._id, label: t.title }))}
+                />
+              </Form.Item>
+            )}
+            {(attachTuanId || editingTuanItem) && (
+              <Form form={tiForm} layout="vertical" component={false}>
+                {isNew && (
+                  <Form.Item label="在商品库中选已有商品(留空则用上方表单新建)" name="productId">
+                    <Select
+                      allowClear
+                      placeholder="从商品库选 — 选了会用该商品的目录信息"
+                      options={catalog.map((p) => ({ value: p._id, label: p.title }))}
+                      onChange={(pid) => {
+                        const p = catalog.find((x) => x._id === pid);
+                        if (p) {
+                          form.setFieldsValue({
+                            title: p.title, description: p.description,
+                            coverFileId: p.coverFileId, imageFileIds: p.imageFileIds,
+                            categoryIds: p.categoryIds,
+                          });
+                        }
+                      }}
+                    />
+                  </Form.Item>
+                )}
+                <Space size={24} style={{ width: '100%' }} wrap>
+                  <Form.Item label="价格 (元)" name="priceDollars" rules={[{ required: true }]}>
+                    <InputNumber min={0} step={0.01} precision={2} prefix="¥" style={{ width: 160 }} />
+                  </Form.Item>
+                  <Form.Item label="库存" name="stock" rules={[{ required: true }]}>
+                    <InputNumber min={0} style={{ width: 120 }} />
+                  </Form.Item>
+                  <Form.Item label="团内排序" name="sort">
+                    <InputNumber min={0} style={{ width: 120 }} />
+                  </Form.Item>
+                </Space>
+                <Form.Item label="团内分组" name="section">
+                  <AutoComplete
+                    options={sectionOptions}
+                    placeholder="输入或选择分组名(可选)"
+                    allowClear
+                  />
+                </Form.Item>
+              </Form>
+            )}
+          </Card>
+        )}
+
+        <Space>
+          <Button type="primary" htmlType="submit">{isNew ? '创建' : '保存'}</Button>
+          <Button onClick={() => nav(-1)}>取消</Button>
         </Space>
-        <div>
-          <Space>
-            <Button type="primary" htmlType="submit">{isEdit ? '保存' : '创建'}</Button>
-            <Button onClick={() => nav(-1)}>取消</Button>
-          </Space>
-        </div>
       </Form>
     </Card>
   );

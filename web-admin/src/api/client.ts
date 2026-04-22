@@ -55,6 +55,7 @@ async function mockDispatch(name: string, data: any): Promise<any> {
     case '_admin/adminLogin':    return mockAdminLogin(data);
     case '_admin/tuanCRUD':      return mockTuanCRUD(data);
     case '_admin/productCRUD':   return mockProductCRUD(data);
+    case '_admin/tuanItemCRUD':  return mockTuanItemCRUD(data);
     case '_admin/categoryCRUD':  return mockCategoryCRUD(data);
     case '_admin/listAllOrders': return mockListAllOrders(data);
     case '_admin/markShipped':   return mockMarkShipped(data);
@@ -118,38 +119,98 @@ function mockTuanCRUD({ action, payload, id, patch, status }: any) {
 function mockProductCRUD({ action, payload, id, patch, tuanId, categoryId }: any) {
   switch (action) {
     case 'list': {
-      const items = mockDb.listProducts({ tuanId, categoryId });
+      if (tuanId) {
+        // 团内模式:返回 joined view
+        const items = mockDb.listProducts({ tuanId, categoryId });
+        return { code: 0, items, total: items.length };
+      }
+      // 商品库模式
+      const items = mockDb.listCatalog(categoryId ? { categoryId } : undefined);
       return { code: 0, items, total: items.length };
     }
     case 'create': {
-      const p = mockDb.createProduct({
-        tuanId: payload.tuanId,
+      const p = mockDb.createCatalog({
         title: payload.title,
         description: payload.description || '',
         coverFileId: payload.coverFileId || '',
         imageFileIds: payload.imageFileIds || [],
         categoryIds: payload.categoryIds || [],
-        section: (payload.section || '').trim() || null,
-        price: payload.price | 0,
-        stock: payload.stock | 0,
-        sort: payload.sort | 0,
       });
-      return { code: 0, _id: p._id };
+      let tuanItemId: string | undefined;
+      if (payload.tuanId) {
+        try {
+          const ti = mockDb.createTuanItem({
+            tuanId: payload.tuanId,
+            productId: p._id,
+            price: payload.price | 0,
+            stock: payload.stock | 0,
+            sort: payload.sort | 0,
+            section: (payload.section || '').trim() || null,
+          });
+          tuanItemId = ti._id;
+        } catch (e: any) {
+          return { code: 3, message: e.message };
+        }
+      }
+      return { code: 0, _id: p._id, productId: p._id, tuanItemId };
     }
     case 'update': {
-      // section 字段:trim 后空串存 null
-      const normalized = { ...patch };
-      if ('section' in normalized) {
-        const s = (normalized.section || '').trim();
-        normalized.section = s || null;
-      }
-      const p = mockDb.updateProduct(id, normalized);
+      const allowed: (keyof typeof patch)[] = ['title', 'description', 'coverFileId', 'imageFileIds', 'categoryIds'];
+      const data: any = {};
+      for (const k of allowed) if (k in patch) data[k] = patch[k];
+      const p = mockDb.updateCatalog(id, data);
       if (!p) return { code: 2, message: 'not found' };
       return { code: 0 };
     }
     case 'delete': {
-      try { mockDb.deleteProduct(id); return { code: 0 }; }
+      try { mockDb.deleteCatalog(id); return { code: 0 }; }
       catch (e: any) { return { code: 1, message: e.message }; }
+    }
+    default: return { code: 1, message: 'unknown action' };
+  }
+}
+
+function mockTuanItemCRUD({ action, tuanId, productId, id, patch, price, stock, sort, section, sourceTuanId, targetTuanId }: any) {
+  switch (action) {
+    case 'list': {
+      if (!tuanId) return { code: 1, message: 'tuanId required' };
+      const items = mockDb.listProducts({ tuanId });
+      return { code: 0, items };
+    }
+    case 'create': {
+      if (!tuanId || !productId) return { code: 1, message: 'tuanId + productId required' };
+      try {
+        const ti = mockDb.createTuanItem({
+          tuanId, productId,
+          price: price | 0, stock: stock | 0, sort: sort | 0,
+          section: (section || '').toString().trim() || null,
+        });
+        return { code: 0, _id: ti._id };
+      } catch (e: any) {
+        return { code: 3, message: e.message };
+      }
+    }
+    case 'update': {
+      const normalized: any = {};
+      if ('price' in patch)   normalized.price = patch.price | 0;
+      if ('stock' in patch)   normalized.stock = patch.stock | 0;
+      if ('sort' in patch)    normalized.sort  = patch.sort | 0;
+      if ('section' in patch) {
+        const s = (patch.section || '').toString().trim();
+        normalized.section = s || null;
+      }
+      const ti = mockDb.updateTuanItem(id, normalized);
+      if (!ti) return { code: 2, message: 'not found' };
+      return { code: 0 };
+    }
+    case 'delete': {
+      try { mockDb.deleteTuanItem(id); return { code: 0 }; }
+      catch (e: any) { return { code: 1, message: e.message }; }
+    }
+    case 'copyFromTuan': {
+      if (!sourceTuanId || !targetTuanId) return { code: 1, message: 'sourceTuanId + targetTuanId required' };
+      const { copied, skipped } = mockDb.copyTuanItems(sourceTuanId, targetTuanId);
+      return { code: 0, copied, skipped };
     }
     default: return { code: 1, message: 'unknown action' };
   }
@@ -215,8 +276,9 @@ function mockGetTuanDetail({ tuanId }: any) {
   return { code: 0, tuan, products };
 }
 
-function mockGetProductDetail({ productId }: any) {
-  const product = mockDb.getProduct(productId);
+function mockGetProductDetail({ tuanItemId, productId }: any) {
+  const id = tuanItemId || productId;
+  const product = mockDb.getProduct(id);
   if (!product) return { code: 2, message: 'not found' };
   const tuan = mockDb.getTuan(product.tuanId);
   return { code: 0, product, tuan, participants: [] };

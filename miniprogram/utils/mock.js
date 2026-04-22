@@ -309,16 +309,19 @@ module.exports = {
     }
     return { items };
   },
-  async upsertCart({ productId, quantity }) {
+  async upsertCart({ tuanItemId, productId, quantity }) {
+    // 向后兼容:老调用只传 productId(历史上 _id == productId == tuanItemId)
+    const id = tuanItemId || productId;
     await delay(80);
     const cart = storeGet(K_CART, { items: [] });
-    const i = cart.items.findIndex((x) => x.productId === productId);
+    const i = cart.items.findIndex((x) => (x.tuanItemId || x.productId) === id);
     if (quantity <= 0) {
       if (i >= 0) cart.items.splice(i, 1);
     } else if (i >= 0) {
       cart.items[i].quantity = quantity;
+      cart.items[i].tuanItemId = id;
     } else {
-      cart.items.push({ productId, quantity, addedAt: new Date().toISOString() });
+      cart.items.push({ tuanItemId: id, productId: id, quantity, addedAt: new Date().toISOString() });
     }
     storeSet(K_CART, cart);
     return cart;
@@ -348,6 +351,7 @@ module.exports = {
       if ((p.stock - p.sold) < it.quantity) throw new Error(`${p.title} 库存不足(剩 ${p.stock - p.sold})`);
       const subtotal = p.price * it.quantity;
       orderItems.push({
+        tuanItemId: p._id,      // mock 下 _id 就是 tuanItemId
         productId: p._id,
         tuanId: p.tuanId,
         title: p.title,
@@ -355,6 +359,7 @@ module.exports = {
         quantity: it.quantity,
         subtotal,
         coverFileId: p.coverFileId,
+        section: p.section || null,
       });
       amount += subtotal;
       // 扣库存(mock 内存改动)

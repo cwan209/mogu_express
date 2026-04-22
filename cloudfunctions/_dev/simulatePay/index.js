@@ -63,9 +63,10 @@ exports.main = async (event) => {
         },
       });
       for (const it of order.items || []) {
-        await tx.collection('products').doc(it.productId).update({
+        const tuanItemId = it.tuanItemId || it.productId;
+        await tx.collection('tuan_items').doc(tuanItemId).update({
           data: { participantCount: _.inc(1), updatedAt: now },
-        });
+        }).catch((err) => console.warn('[simulatePay] inc participantCount failed for', tuanItemId, err.message));
       }
     });
   } catch (err) {
@@ -76,9 +77,11 @@ exports.main = async (event) => {
   try {
     const user = order.userSnapshot || {};
     for (const it of order.items || []) {
+      const tuanItemId = it.tuanItemId || it.productId;
       await db.collection('participant_index').add({
         data: {
-          _id: `${it.productId}_${order._id}`,
+          _id: `${tuanItemId}_${order._id}`,
+          tuanItemId,
           productId: it.productId, orderId: order._id, _openid: order._openid,
           nickName: user.name || '顾客', avatar: '', quantity: it.quantity, paidAt: now,
         },
