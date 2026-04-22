@@ -435,6 +435,177 @@ test('HuePay SDK refund stub', async () => {
   assert.ok(r.refundId);
 });
 
+// ── Section(团内分组)相关 ──
+
+test('_admin/productCRUD create 支持 section 字段', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/productCRUD').main({
+    action: 'create',
+    token,
+    payload: {
+      tuanId: 'tuan_001',
+      title: 'test',
+      coverFileId: 'x',
+      section: '  测试分组  ',       // 带前后空格
+      price: 100, stock: 10, sort: 1,
+      categoryIds: [],
+    },
+  });
+  assert.equal(r.code, 0);
+  assert.ok(r._id);
+  // 读回来确认 trim + 落库
+  const list = await requireCf('_admin/productCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
+  const found = list.items.find((p) => p._id === r._id);
+  assert.ok(found, 'new product should be in list');
+  assert.equal(found.section, '测试分组');
+});
+
+test('_admin/productCRUD create section 空串存 null', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/productCRUD').main({
+    action: 'create',
+    token,
+    payload: {
+      tuanId: 'tuan_001',
+      title: 'no section',
+      coverFileId: 'x',
+      section: '   ',              // 只空白
+      price: 100, stock: 10, sort: 1,
+      categoryIds: [],
+    },
+  });
+  assert.equal(r.code, 0);
+  const list = await requireCf('_admin/productCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
+  const found = list.items.find((p) => p._id === r._id);
+  assert.equal(found.section, null);
+});
+
+test('_admin/productCRUD update section 能清空(传空串→null)', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  // 先建一个有 section 的产品
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    products: [
+      { _id: 'px', tuanId: 'tuan_001', sort: 1, title: 'X', price: 100, stock: 10, sold: 0, section: '旧分组', categoryIds: [], participantCount: 0, coverFileId: '', imageFileIds: [], description: '' },
+    ],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/productCRUD').main({
+    action: 'update', token, id: 'px', patch: { section: '' },
+  });
+  assert.equal(r.code, 0);
+  const list = await requireCf('_admin/productCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
+  const found = list.items.find((p) => p._id === 'px');
+  assert.equal(found.section, null);
+});
+
+// ── 地址校验(addressValidate.js)— 面向中国大陆用户 ──
+
+test('addressValidate 通过合法中国地址', () => {
+  const { validate } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const ok = {
+    recipient: '王小姐', phone: '13800138000',
+    state: '浙江', suburb: '杭州市 西湖区',
+    line1: '文三路 100 号', line2: '3 号楼 501',
+    postcode: '310012',
+  };
+  assert.equal(validate(ok), null);
+});
+
+test('addressValidate 拒绝非 11 位手机', () => {
+  const { validate } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const bad = {
+    recipient: '王小姐', phone: '12345',
+    state: '浙江', suburb: '杭州', line1: '文三路', postcode: '310000',
+  };
+  const err = validate(bad);
+  assert.ok(err && err.field === 'phone');
+});
+
+test('addressValidate 拒绝 1 开头但第二位 0-2 的手机', () => {
+  const { validate } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const bad = {
+    recipient: '王小姐', phone: '12012345678',  // 12 开头,不合法
+    state: '浙江', suburb: '杭州', line1: '文三路', postcode: '310000',
+  };
+  const err = validate(bad);
+  assert.ok(err && err.field === 'phone');
+});
+
+test('addressValidate 拒绝非 6 位邮编', () => {
+  const { validate } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const bad = {
+    recipient: '李雷', phone: '13800138000',
+    state: '北京', suburb: '朝阳区', line1: '建国路 1 号', postcode: '1000',
+  };
+  const err = validate(bad);
+  assert.ok(err && err.field === 'postcode');
+});
+
+test('addressValidate 拒绝不在列表的省份', () => {
+  const { validate } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const bad = {
+    recipient: '李雷', phone: '13800138000',
+    state: 'VIC', suburb: '朝阳区', line1: '建国路 1 号', postcode: '100000',
+  };
+  const err = validate(bad);
+  assert.ok(err && err.field === 'state');
+});
+
+test('addressValidate 拒绝纯数字姓名', () => {
+  const { validate } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const bad = {
+    recipient: '12345', phone: '13800138000',
+    state: '北京', suburb: '朝阳区', line1: '建国路 1 号', postcode: '100000',
+  };
+  const err = validate(bad);
+  assert.ok(err && err.field === 'recipient');
+});
+
+test('addressValidate 接受 +86 格式手机', () => {
+  const { validate } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const ok = {
+    recipient: '王小姐', phone: '+86 138 0013 8000',
+    state: '上海', suburb: '浦东新区', line1: '陆家嘴 1 号', postcode: '200120',
+  };
+  assert.equal(validate(ok), null);
+});
+
+test('addressValidate normalize 去空格', () => {
+  const { normalize } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const raw = {
+    recipient: '  王小姐  ', phone: ' 13800138000 ',
+    state: ' 浙江 ', suburb: ' 杭州市 西湖区 ',
+    line1: ' 文三路 100 号 ', line2: '', postcode: ' 310012 ',
+  };
+  const n = normalize(raw);
+  assert.equal(n.recipient, '王小姐');
+  assert.equal(n.state, '浙江');
+  assert.equal(n.postcode, '310012');
+  assert.equal(n.line1, '文三路 100 号');
+});
+
+test('addressValidate 接受直辖市(北京/上海)', () => {
+  const { validate } = require(path.resolve(__dirname, '../../miniprogram/utils/addressValidate.js'));
+  const ok = {
+    recipient: '李雷', phone: '13800138000',
+    state: '北京', suburb: '朝阳区',
+    line1: '建国路 1 号', postcode: '100022',
+  };
+  assert.equal(validate(ok), null);
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {

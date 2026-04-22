@@ -58,34 +58,18 @@
           bindtap="onSectionTap"
         >
           <text>{{item.section}}</text>
-          <text class="count">{{item.products.length}}</text>
         </view>
       </scroll-view>
 
       <!-- 右商品区 -->
-      <scroll-view
-        class="main"
-        scroll-y
-        scroll-into-view="{{scrollIntoView}}"
-        scroll-with-animation
-        bindscroll="onProductsScroll"
-      >
-        <view
-          wx:for="{{groups}}"
-          wx:key="section"
-          wx:for-item="group"
-          wx:for-index="gi"
-          class="group"
-        >
-          <view id="g{{gi}}" class="section-anchor section-title">{{group.section}}</view>
-          <product-card
-            wx:for="{{group.products}}"
-            wx:key="_id"
-            wx:for-item="p"
-            product="{{p}}"
-            available="{{tuan.status === 'on_sale'}}"
-          />
-        </view>
+      <scroll-view class="main" scroll-y>
+        <view class="section-title">{{activeSection}}</view>
+        <product-card
+          wx:for="{{activeGroupProducts}}"
+          wx:key="_id"
+          product="{{item}}"
+          available="{{tuan.status === 'on_sale'}}"
+        />
         <view class="scroll-bottom-pad"></view>
       </scroll-view>
     </view>

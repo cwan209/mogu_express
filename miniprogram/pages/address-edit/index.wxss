@@ -29,3 +29,18 @@
   margin-bottom: 16rpx;
 }
 .form-actions { display: flex; flex-direction: column; gap: 16rpx; }
+
+/* 字段校验错误 */
+.err {
+  color: var(--error-color);
+  font-size: 22rpx;
+  padding: 4rpx 24rpx 10rpx;
+  background: var(--bg-card);
+  line-height: 1.4;
+}
+
+/* picker value 样式(和 t-input 对齐) */
+.picker-value {
+  color: var(--text-primary);
+  font-size: 28rpx;
+}

@@ -5,13 +5,30 @@
 //   id=xxx → 编辑模式
 //   new → 新增模式
 const addressService = require('../../services/address.js');
+const { CN_PROVINCES, validate, normalize } = require('../../utils/addressValidate.js');
+
+const FIELD_LABEL = {
+  recipient: '收件人',
+  phone: '手机号',
+  line1: '详细地址',
+  line2: '门牌/单元',
+  suburb: '市/区',
+  state: '省',
+  postcode: '邮编',
+};
 
 Page({
   data: {
-    screen: 'list',           // list | form
+    screen: 'list',
     addresses: [],
     pickMode: false,
     form: null,
+
+    // 校验错误 {field: message}
+    errors: {},
+    // 省 picker 候选
+    stateOptions: CN_PROVINCES,
+    stateIndex: 0,
   },
 
   onLoad(options) {
@@ -43,8 +60,12 @@ Page({
   },
 
   enterForm(data) {
+    const state = data.state || CN_PROVINCES[0];
+    const stateIndex = Math.max(0, CN_PROVINCES.indexOf(state));
     this.setData({
       screen: 'form',
+      errors: {},
+      stateIndex,
       form: {
         _id: data._id || '',
         recipient: data.recipient || '',
@@ -52,7 +73,7 @@ Page({
         line1: data.line1 || '',
         line2: data.line2 || '',
         suburb: data.suburb || '',
-        state: data.state || 'VIC',
+        state,
         postcode: data.postcode || '',
         isDefault: !!data.isDefault,
       },
@@ -63,7 +84,31 @@ Page({
   onField(e) {
     const k = e.currentTarget.dataset.k;
     this.setData({ [`form.${k}`]: e.detail.value });
+    // 输入时清当前字段的错误,提示消失
+    if (this.data.errors[k]) {
+      this.setData({ [`errors.${k}`]: '' });
+    }
   },
+
+  // state 用 picker
+  onStateChange(e) {
+    const idx = Number(e.detail.value);
+    this.setData({
+      stateIndex: idx,
+      'form.state': CN_PROVINCES[idx],
+      'errors.state': '',
+    });
+  },
+
+  // 单字段失焦校验(提升 UX)
+  onFieldBlur(e) {
+    const k = e.currentTarget.dataset.k;
+    const err = validate(this.data.form);
+    if (err && err.field === k) {
+      this.setData({ [`errors.${k}`]: err.message });
+    }
+  },
+
   onToggleDefault(e) {
     this.setData({ 'form.isDefault': e.detail.value });
   },
@@ -82,7 +127,6 @@ Page({
     const pages = getCurrentPages();
     const prev = pages[pages.length - 2];
     if (prev && prev.route && prev.route.indexOf('order-confirm') >= 0) {
-      // 设置上一页的默认地址为选中地址
       const one = this.data.addresses.find((x) => x._id === id);
       if (one) prev.setData({ address: one });
     }
@@ -90,15 +134,21 @@ Page({
   },
 
   async onSave() {
-    const f = this.data.form;
-    const missing = ['recipient', 'phone', 'line1', 'suburb', 'state', 'postcode'].filter((k) => !f[k]);
-    if (missing.length) {
-      wx.showToast({ title: '请填完必填项', icon: 'none' });
+    const err = validate(this.data.form);
+    if (err) {
+      this.setData({ [`errors.${err.field}`]: err.message });
+      wx.showToast({
+        title: `${FIELD_LABEL[err.field] || ''}:${err.message}`,
+        icon: 'none',
+        duration: 2500,
+      });
       return;
     }
+
+    const cleanForm = normalize(this.data.form);
     try {
       wx.showLoading({ title: '保存中...' });
-      await addressService.upsertAddress(f);
+      await addressService.upsertAddress(cleanForm);
       wx.hideLoading();
       wx.showToast({ title: '已保存', icon: 'success' });
       setTimeout(() => {

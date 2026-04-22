@@ -84,6 +84,12 @@ export default function Products() {
           { title: '标题', dataIndex: 'title', ellipsis: true },
           { title: '所属团', dataIndex: 'tuanId', ellipsis: true, render: tuanTitle, width: 220 },
           {
+            title: '团内分组',
+            dataIndex: 'section',
+            width: 100,
+            render: (s: string | null) => s || <span style={{ color: '#bbb' }}>—</span>,
+          },
+          {
             title: '分类',
             dataIndex: 'categoryIds',
             width: 160,
