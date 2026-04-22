@@ -72,10 +72,10 @@ exports.main = async (event) => {
       { header: '电话',      key: 'phone',      width: 14 },
       { header: '收货地址',  key: 'address',    width: 50 },
       { header: '商品',      key: 'itemTitle',  width: 30 },
-      { header: '单价 AUD',  key: 'price',      width: 10 },
+      { header: '单价 ¥',  key: 'price',      width: 10 },
       { header: '数量',      key: 'qty',        width: 6 },
-      { header: '小计 AUD',  key: 'subtotal',   width: 10 },
-      { header: '订单总金额 AUD', key: 'amount', width: 12 },
+      { header: '小计 ¥',  key: 'subtotal',   width: 10 },
+      { header: '订单总额 ¥', key: 'amount', width: 12 },
       { header: '备注',      key: 'remark',     width: 24 },
     ];
 
@@ -114,9 +114,9 @@ exports.main = async (event) => {
     ws2.columns = [
       { header: '商品',        key: 'title',  width: 30 },
       { header: '所属团 ID',    key: 'tuanId', width: 18 },
-      { header: '单价 AUD',    key: 'price',  width: 10 },
+      { header: '单价 ¥',    key: 'price',  width: 10 },
       { header: '售出数量',    key: 'qty',    width: 10 },
-      { header: '销售金额 AUD', key: 'total',  width: 14 },
+      { header: '销售金额 ¥', key: 'total',  width: 14 },
       { header: '订单数',      key: 'orders', width: 10 },
     ];
 

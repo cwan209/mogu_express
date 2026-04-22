@@ -9,7 +9,7 @@
   <!-- 价格/标题 -->
   <view class="info-card">
     <view class="price-row">
-      <text class="symbol">A$</text>
+      <text class="symbol">¥</text>
       <text class="price">{{priceText}}</text>
       <text class="part" wx:if="{{product.participantCount > 0}}">· {{product.participantCount}} 人接龙</text>
     </view>

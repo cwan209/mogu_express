@@ -32,7 +32,7 @@
       <view class="item-body">
         <view class="t">{{item.product.title}}</view>
         <view class="row">
-          <text class="p">A$ {{priceMap[item.productId]}}</text>
+          <text class="p">¥{{priceMap[item.productId]}}</text>
           <text class="q">× {{item.quantity}}</text>
         </view>
       </view>
@@ -53,15 +53,15 @@
 
   <!-- 金额 -->
   <view class="amount-card">
-    <view class="line"><text>商品总额</text><text>A$ {{totalText}}</text></view>
-    <view class="line"><text>运费</text><text>A$ 0.00</text></view>
-    <view class="line total"><text>实付</text><text class="big">A$ {{totalText}}</text></view>
+    <view class="line"><text>商品总额</text><text>¥{{totalText}}</text></view>
+    <view class="line"><text>运费</text><text>¥0.00</text></view>
+    <view class="line total"><text>实付</text><text class="big">¥{{totalText}}</text></view>
   </view>
 
   <!-- 底栏 -->
   <view class="bottom-bar">
     <view class="total-label">实付</view>
-    <view class="total-big">A$ {{totalText}}</view>
+    <view class="total-big">¥{{totalText}}</view>
     <t-button
       theme="primary"
       size="large"

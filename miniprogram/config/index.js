@@ -30,7 +30,7 @@ module.exports = {
   shareImage: '', // TODO: 替换为 CDN/云存储封面
 
   // 业务常量
-  currency: 'AUD',
+  currency: 'CNY',
 
   // 每次分页大小
   pageSize: 20,

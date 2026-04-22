@@ -21,7 +21,7 @@
       <view class="body">
         <view class="t">{{item.title}}</view>
         <view class="row">
-          <text class="p">A$ {{priceMap[item.productId]}}</text>
+          <text class="p">¥{{priceMap[item.productId]}}</text>
           <text class="q">× {{item.quantity}}</text>
         </view>
       </view>
@@ -30,9 +30,9 @@
 
   <view class="card">
     <view class="card-title">金额</view>
-    <view class="line"><text>商品总额</text><text>A$ {{amountText}}</text></view>
-    <view class="line"><text>运费</text><text>A$ 0.00</text></view>
-    <view class="line total"><text>实付</text><text class="big">A$ {{amountText}}</text></view>
+    <view class="line"><text>商品总额</text><text>¥{{amountText}}</text></view>
+    <view class="line"><text>运费</text><text>¥0.00</text></view>
+    <view class="line total"><text>实付</text><text class="big">¥{{amountText}}</text></view>
   </view>
 
   <view class="card">

@@ -21,7 +21,7 @@
             <text class="bad" wx:if="{{!item.available}}">· 已失效</text>
           </view>
           <view class="price-row">
-            <view class="price"><text class="sym">A$</text><text class="val">{{priceMap[item.productId]}}</text></view>
+            <view class="price"><text class="sym">¥</text><text class="val">{{priceMap[item.productId]}}</text></view>
             <view catchtap>
               <cart-stepper
                 value="{{item.quantity}}"
@@ -49,7 +49,7 @@
       </view>
       <view class="bar-mid">
         <text class="total-label">合计</text>
-        <text class="total-val">A$ {{totalText}}</text>
+        <text class="total-val">¥{{totalText}}</text>
       </view>
       <view class="bar-right">
         <t-button

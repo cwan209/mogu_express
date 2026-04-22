@@ -164,8 +164,8 @@ export default function ProductEdit() {
           />
         </Form.Item>
         <Space size={24} style={{ width: '100%' }} wrap>
-          <Form.Item label="价格 (AUD)" name="priceDollars" rules={[{ required: true }]}>
-            <InputNumber min={0} step={0.01} precision={2} prefix="$" style={{ width: 160 }} />
+          <Form.Item label="价格 (元)" name="priceDollars" rules={[{ required: true }]}>
+            <InputNumber min={0} step={0.01} precision={2} prefix="¥" style={{ width: 160 }} />
           </Form.Item>
           <Form.Item label="库存" name="stock" rules={[{ required: true }]}>
             <InputNumber min={0} style={{ width: 120 }} />

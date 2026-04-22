@@ -71,7 +71,7 @@ export default function Dashboard() {
       {/* 今日 */}
       <Card title="今日" size="small" style={{ marginBottom: 16 }}>
         <Row gutter={16}>
-          <Col span={6}><Statistic title="GMV" value={Number(fromCents(s.gmvToday))} precision={2} prefix="$" suffix=" AUD" /></Col>
+          <Col span={6}><Statistic title="GMV" value={Number(fromCents(s.gmvToday))} precision={2} prefix="¥" /></Col>
           <Col span={6}><Statistic title="订单数" value={s.ordersToday} /></Col>
           <Col span={6}><Statistic title="进行中的团" value={s.activeTuans} /></Col>
           <Col span={6}><Statistic title="在售商品" value={s.activeProducts} /></Col>
@@ -81,9 +81,9 @@ export default function Dashboard() {
       {/* 近 7 天 / 30 天 */}
       <Card title="近期" size="small" style={{ marginBottom: 16 }}>
         <Row gutter={16}>
-          <Col span={6}><Statistic title="7 天 GMV" value={Number(fromCents(s.gmv7d))} precision={2} prefix="$" /></Col>
+          <Col span={6}><Statistic title="7 天 GMV" value={Number(fromCents(s.gmv7d))} precision={2} prefix="¥" /></Col>
           <Col span={6}><Statistic title="7 天订单" value={s.orders7d} /></Col>
-          <Col span={6}><Statistic title="30 天 GMV" value={Number(fromCents(s.gmv30d))} precision={2} prefix="$" /></Col>
+          <Col span={6}><Statistic title="30 天 GMV" value={Number(fromCents(s.gmv30d))} precision={2} prefix="¥" /></Col>
           <Col span={6}><Statistic title="30 天订单" value={s.orders30d} /></Col>
         </Row>
       </Card>

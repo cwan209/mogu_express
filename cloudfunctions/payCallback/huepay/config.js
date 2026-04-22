@@ -30,7 +30,7 @@ const config = {
   secret:     process.env.HUEPAY_SECRET      || 'STUB_SECRET_REPLACE_ME',
   signAlgo:   process.env.HUEPAY_SIGN_ALGO   || 'HMAC-SHA256',
   notifyUrl:  process.env.HUEPAY_NOTIFY_URL  || 'http://localhost:4000/cloud/payCallback',
-  currency:   process.env.HUEPAY_CURRENCY    || 'AUD',
+  currency:   process.env.HUEPAY_CURRENCY    || 'CNY',
 
   // 支付渠道(wechat / alipay / card)
   defaultChannel: 'wechat',

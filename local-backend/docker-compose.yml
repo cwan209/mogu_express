@@ -3,6 +3,8 @@ services:
     image: mongo:7
     container_name: mogu_mongo
     restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
     ports:
       - "27017:27017"
     volumes:
@@ -24,6 +26,7 @@ services:
       - "9000:9000"   # S3 API
       - "9001:9001"   # Web console
     environment:
+      TZ: Asia/Shanghai
       MINIO_ROOT_USER: mogu_admin
       MINIO_ROOT_PASSWORD: mogu_admin_pass
     volumes:
@@ -37,6 +40,7 @@ services:
     ports:
       - "4000:4000"
     environment:
+      TZ: Asia/Shanghai
       MONGO_URL: mongodb://mongo:27017/mogu_express?replicaSet=rs0
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: mogu_admin

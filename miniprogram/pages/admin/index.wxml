@@ -12,7 +12,7 @@
     <view class="stats-card">
       <view class="stat">
         <view class="stat-label">今日 GMV</view>
-        <view class="stat-val brand">A$ {{gmvTodayText}}</view>
+        <view class="stat-val brand">¥{{gmvTodayText}}</view>
       </view>
       <view class="stat">
         <view class="stat-label">今日订单</view>
@@ -26,7 +26,7 @@
 
     <view class="stats-row-7d">
       <text class="label">近 7 天</text>
-      <text>A$ {{gmv7dText}} · {{stats.orders7d || 0}} 单</text>
+      <text>¥{{gmv7dText}} · {{stats.orders7d || 0}} 单</text>
     </view>
 
     <!-- 待发货订单 -->
@@ -59,7 +59,7 @@
       </view>
 
       <view class="order-foot">
-        <text class="amount">A$ {{amountText[item._id]}}</text>
+        <text class="amount">¥{{amountText[item._id]}}</text>
         <t-button
           theme="primary"
           size="small"

@@ -62,7 +62,7 @@ Page({
         payload = {
           title: product.title || '商品',
           desc: product.description || '',
-          price: 'A$ ' + fromCents(product.price || 0),
+          price: '¥' + fromCents(product.price || 0),
           coverUrl: product.coverFileId,
         };
       }

@@ -30,7 +30,7 @@
       </view>
       <view class="foot">
         <text class="count">共 {{item.items.length}} 件</text>
-        <text class="amount">A$ {{amountMap[item._id]}}</text>
+        <text class="amount">¥{{amountMap[item._id]}}</text>
       </view>
     </view>
   </block>
