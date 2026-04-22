@@ -38,6 +38,8 @@ Module._resolveFilename = function (request, parent, ...rest) {
 process.env.CLOUD_ENV = process.env.CLOUD_ENV || 'local';
 
 const shim = require('./src/shim');
+const s3 = require('./src/storage/s3');
+shim.__setS3Storage(s3);
 
 // ---- Step 2: 启动 Mongo ----
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/mogu_express?replicaSet=rs0';
@@ -80,6 +82,12 @@ function loadCloudFn(dir) {
 // ---- Step 4: Express ----
 async function main() {
   await connectMongo();
+  // S3 兼容存储初始化(失败不致命,某些场景如纯离线测试可跳过)
+  try {
+    await s3.ensureBucket();
+  } catch (err) {
+    console.warn('[s3] ensureBucket failed, uploads will 500 until fixed:', err.message);
+  }
 
   const app = express();
   app.use(cors({ origin: true, credentials: true }));

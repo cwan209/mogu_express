@@ -265,10 +265,34 @@ const openapi = {
   },
 };
 
-// ===== storage stubs =====
+// ===== storage =====
+// uploadFile 真实上传到 S3 兼容存储(本地 MinIO / 生产腾讯云 COS)。
+// 输入: { cloudPath, fileContent: Buffer, contentType? }
+// 返回: { fileID: 'https://...public URL...' }
+let _s3Storage = null;
+function setS3Storage(s3) { _s3Storage = s3; }
+
+function guessContentType(cloudPath) {
+  const ext = String(cloudPath || '').toLowerCase().split('.').pop();
+  const map = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pdf: 'application/pdf', json: 'application/json', txt: 'text/plain',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
 async function uploadFile(opts) {
-  // M4 接 MinIO,现在只返回假 fileID
-  return { fileID: 'cloud://local/' + (opts.cloudPath || 'upload_' + genId()) };
+  const cloudPath = opts.cloudPath || ('upload_' + genId());
+  if (!_s3Storage) {
+    // 未配置 S3(比如 test-shim 离线跑),回退到 stub fileID
+    return { fileID: 'cloud://local/' + cloudPath };
+  }
+  const buf = Buffer.isBuffer(opts.fileContent) ? opts.fileContent : Buffer.from(opts.fileContent || '');
+  const contentType = opts.contentType || guessContentType(cloudPath);
+  const { url } = await _s3Storage.putObject(cloudPath, buf, contentType);
+  return { fileID: url };
 }
 async function downloadFile() { throw new Error('downloadFile not implemented'); }
 async function getTempFileURL({ fileList }) {
@@ -286,6 +310,7 @@ module.exports = {
   // 内部管理(server 调用)
   __setMongo: setMongo,
   __setContext: setContext,
+  __setS3Storage: setS3Storage,
 
   // 微信云开发公开 API
   DYNAMIC_CURRENT_ENV: Symbol.for('dynamic_current_env'),

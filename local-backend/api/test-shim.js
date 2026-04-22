@@ -606,6 +606,83 @@ test('addressValidate 接受直辖市(北京/上海)', () => {
   assert.equal(validate(ok), null);
 });
 
+// ---- uploadImage 测试 ----
+// 注入一个 in-memory S3 storage,避免跑真的 MinIO
+function installMockS3() {
+  const uploaded = [];
+  shim.__setS3Storage({
+    async putObject(key, buffer, contentType) {
+      uploaded.push({ key, size: buffer.length, contentType });
+      return { key, url: `http://mock.local/images/${key}` };
+    },
+  });
+  return uploaded;
+}
+
+// 1x1 PNG(真实 magic bytes)base64
+const PNG_1x1_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+test('_admin/uploadImage 成功上传 PNG', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  const uploaded = installMockS3();
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/uploadImage').main({
+    token,
+    fileBase64: PNG_1x1_BASE64,
+    mimeType: 'image/png',
+    fileName: 'test.png',
+    purpose: 'tuan_cover',
+  });
+  assert.equal(r.code, 0);
+  assert.match(r.url, /^http:\/\/mock\.local\/images\/tuan_cover\/\d{6}\/[a-f0-9]+\.png$/);
+  assert.equal(uploaded.length, 1);
+  assert.equal(uploaded[0].contentType, 'image/png');
+});
+
+test('_admin/uploadImage 拒绝非白名单 MIME', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  installMockS3();
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/uploadImage').main({
+    token,
+    fileBase64: Buffer.from('%PDF-1.4').toString('base64'),
+    mimeType: 'application/pdf',
+    fileName: 'evil.pdf',
+    purpose: 'tuan_cover',
+  });
+  assert.notEqual(r.code, 0);
+});
+
+test('_admin/uploadImage 拒绝超过 3MB', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  installMockS3();
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const bigBuf = Buffer.alloc(4 * 1024 * 1024, 0xff);
+  // 前 4 字节伪装 PNG 头,让它过 magic bytes,被 size 检查拦
+  bigBuf[0] = 0x89; bigBuf[1] = 0x50; bigBuf[2] = 0x4e; bigBuf[3] = 0x47;
+  const r = await requireCf('_admin/uploadImage').main({
+    token,
+    fileBase64: bigBuf.toString('base64'),
+    mimeType: 'image/png',
+    fileName: 'big.png',
+    purpose: 'product_image',
+  });
+  assert.equal(r.code, 5);
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {

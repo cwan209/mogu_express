@@ -26,6 +26,7 @@ const LIBS = [
       'cloudfunctions/_admin/markCompleted',
       'cloudfunctions/_admin/orderStats',
       'cloudfunctions/_admin/exportOrders',
+      'cloudfunctions/_admin/uploadImage',
     ],
     destName: 'jwt.js',
     kind: 'file',

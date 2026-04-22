@@ -1,0 +1,9 @@
+{
+  "name": "uploadImage",
+  "version": "1.0.0",
+  "description": "管理员上传图片到对象存储(S3 兼容)",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

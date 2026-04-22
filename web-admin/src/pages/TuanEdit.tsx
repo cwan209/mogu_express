@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import { createTuan, getTuan, updateTuan } from '../api/tuan';
 import type { TuanStatus } from '../types';
+import ImageUploader from '../components/ImageUploader';
 
 const { TextArea } = Input;
 
@@ -35,7 +36,7 @@ export default function TuanEdit() {
     } else {
       form.setFieldsValue({
         status: 'draft',
-        coverFileId: 'https://picsum.photos/seed/' + Date.now() + '/800/450',
+        coverFileId: '',
       } as any);
     }
     // eslint-disable-next-line
@@ -52,6 +53,10 @@ export default function TuanEdit() {
     };
     if (v.range[1].isBefore(v.range[0])) {
       message.error('结束时间必须晚于开始时间');
+      return;
+    }
+    if (payload.coverFileId && payload.coverFileId.startsWith('blob:')) {
+      message.error('图片未完成上传,请等待或重新上传');
       return;
     }
     try {
@@ -78,11 +83,12 @@ export default function TuanEdit() {
           <TextArea rows={3} maxLength={200} showCount placeholder="产地/自提/截团/发货等说明" />
         </Form.Item>
         <Form.Item
-          label="封面图 URL"
+          label="封面图"
           name="coverFileId"
-          tooltip="M1 阶段用外链 URL;M3+ 接入云存储后改为 fileId"
+          tooltip="本地拖拽上传,或折叠区粘贴已有 URL"
+          valuePropName="value"
         >
-          <Input placeholder="https://..." />
+          <ImageUploader mode="single" purpose="tuan_cover" />
         </Form.Item>
         <Form.Item
           label="开团时间 ~ 截止时间"

@@ -5,6 +5,7 @@ import { createProduct, getProduct, updateProduct, listProducts } from '../api/p
 import { listTuans } from '../api/tuan';
 import { listCategories } from '../api/category';
 import type { Tuan, Category, Product } from '../types';
+import ImageUploader from '../components/ImageUploader';
 
 const { TextArea } = Input;
 
@@ -12,7 +13,7 @@ interface FormValues {
   title: string;
   description: string;
   coverFileId: string;
-  imageFileIds: string;    // 多图用换行分隔
+  imageFileIds: string[];
   tuanId: string;
   categoryIds: string[];
   section: string;         // 团内分组
@@ -42,7 +43,7 @@ export default function ProductEdit() {
           title: p.title,
           description: p.description,
           coverFileId: p.coverFileId,
-          imageFileIds: (p.imageFileIds || []).join('\n'),
+          imageFileIds: p.imageFileIds || [],
           tuanId: p.tuanId,
           categoryIds: p.categoryIds,
           section: p.section || '',
@@ -54,7 +55,8 @@ export default function ProductEdit() {
       });
     } else {
       form.setFieldsValue({
-        coverFileId: 'https://picsum.photos/seed/p' + Date.now() + '/600/600',
+        coverFileId: '',
+        imageFileIds: [],
         stock: 20,
         sort: 1,
         priceDollars: 9.99,
@@ -83,11 +85,20 @@ export default function ProductEdit() {
   const onFinish = async (v: FormValues) => {
     const price = Math.round((v.priceDollars || 0) * 100);
     if (price <= 0) { message.error('价格必须大于 0'); return; }
+    const imageFileIds = Array.isArray(v.imageFileIds) ? v.imageFileIds : [];
+    if (v.coverFileId && v.coverFileId.startsWith('blob:')) {
+      message.error('封面图未完成上传,请等待或重新上传');
+      return;
+    }
+    if (imageFileIds.some((u) => u.startsWith('blob:'))) {
+      message.error('详情图未完成上传,请等待或重新上传');
+      return;
+    }
     const payload = {
       title: v.title,
       description: v.description || '',
       coverFileId: v.coverFileId || '',
-      imageFileIds: (v.imageFileIds || '').split('\n').map(s => s.trim()).filter(Boolean),
+      imageFileIds,
       tuanId: v.tuanId,
       categoryIds: v.categoryIds || [],
       section: (v.section || '').trim() || null,
@@ -126,15 +137,19 @@ export default function ProductEdit() {
         <Form.Item label="用途/描述" name="description">
           <TextArea rows={3} maxLength={500} showCount />
         </Form.Item>
-        <Form.Item label="封面 URL" name="coverFileId" rules={[{ required: true }]}>
-          <Input placeholder="https://..." />
+        <Form.Item
+          label="封面图"
+          name="coverFileId"
+          rules={[{ required: true, message: '请上传封面图' }]}
+        >
+          <ImageUploader mode="single" purpose="product_cover" />
         </Form.Item>
         <Form.Item
-          label="详情图 URL(每行一张)"
+          label="详情图"
           name="imageFileIds"
-          tooltip="M3+ 改为上传到云存储返回 fileId"
+          tooltip="最多 5 张,拖拽上传或粘贴已有图床 URL"
         >
-          <TextArea rows={3} placeholder="https://...\nhttps://..." />
+          <ImageUploader mode="multiple" max={5} purpose="product_image" />
         </Form.Item>
         <Form.Item label="所属团" name="tuanId" rules={[{ required: true, message: '请选择所属团' }]}>
           <Select

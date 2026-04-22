@@ -42,9 +42,15 @@ services:
     environment:
       TZ: Asia/Shanghai
       MONGO_URL: mongodb://mongo:27017/mogu_express?replicaSet=rs0
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: mogu_admin
-      MINIO_SECRET_KEY: mogu_admin_pass
+      # S3 兼容存储(本地 MinIO,生产切腾讯云 COS 只改这些变量)
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: images
+      S3_ACCESS_KEY: mogu_admin
+      S3_SECRET_KEY: mogu_admin_pass
+      S3_PUBLIC_URL: http://localhost:9000/images
+      S3_AUTO_CREATE_BUCKET: "true"
+      S3_FORCE_PATH_STYLE: "true"
       JWT_SECRET: local_dev_secret_CHANGE_ME
       PORT: "4000"
     volumes:

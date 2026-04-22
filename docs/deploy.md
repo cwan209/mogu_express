@@ -265,6 +265,60 @@ uptime:
 2. 恢复:`docker cp ./backup mogu_mongo:/tmp/dump && docker exec mogu_mongo mongorestore /tmp/dump`
 3. 重建容器:`docker compose down && docker compose up -d`(volume 保留数据)
 
+## 图片存储:本地 MinIO → 生产腾讯云 COS
+
+Web 后台的"上传图片"走 S3 兼容接口:
+- **本地开发**:docker-compose 里的 MinIO 容器(免费、零配置、自动建 bucket 设公有读)
+- **生产**:**腾讯云 COS**(国内访问快、价格低、微信生态兼容)
+
+切换只改环境变量,**代码一行不改**(用 `@aws-sdk/client-s3`,腾讯 COS 的 S3 兼容 API)。
+
+### 腾讯云 COS 初始化步骤
+
+1. 控制台开通 COS,建 bucket:`mogu-express-images-<随机后缀>`
+2. bucket 权限:**公有读私有写**(图片面向匿名顾客)
+3. 访问管理 → 子账号 → 新建子账号,给"该 bucket 的 Put/Get/Delete"最小权限 → 记下 `SecretId` / `SecretKey`
+4. (可选)配 CDN 加速域名,回源指向该 bucket
+5. 小程序后台 → 开发设置 → **downloadFile 合法域名**加上 COS 或 CDN 域名
+
+### docker-compose.yml 切换生产值
+
+```yaml
+services:
+  api:
+    environment:
+      S3_ENDPOINT: https://cos.ap-guangzhou.myqcloud.com   # 改成你 bucket 的 region
+      S3_REGION: ap-guangzhou
+      S3_BUCKET: mogu-express-images-xxx
+      S3_ACCESS_KEY: AKIDxxxxxxxxxxxx                      # 子账号 SecretId
+      S3_SECRET_KEY: xxxxxxxxxxxxxxxx                      # 子账号 SecretKey
+      S3_PUBLIC_URL: https://mogu-express-images-xxx.cos.ap-guangzhou.myqcloud.com
+      #  ↑ 如果配了 CDN,改成 CDN 域名
+      S3_AUTO_CREATE_BUCKET: "false"                       # 生产 bucket 提前手动建
+      S3_FORCE_PATH_STYLE: "false"                         # COS 用虚拟主机风格
+```
+
+然后:`docker compose up -d --force-recreate api`
+
+MinIO 服务(`minio:`)**可以在生产 compose 里删掉**,只留 mongo + api。
+
+### 旧图迁移(可选)
+
+切 COS 之前上传的图 URL 是 `http://your-server:9000/images/...`。如果只是测试数据可以忽略;真实运营数据可用 mongosh 批量替换:
+```js
+db.products.find().forEach(p => {
+  p.coverFileId = p.coverFileId.replace(/^http:\/\/[^/]+\/images\//, 'https://xxx.cos.ap-guangzhou.myqcloud.com/');
+  p.imageFileIds = (p.imageFileIds || []).map(u => u.replace(/^http:\/\/[^/]+\/images\//, 'https://xxx.cos.ap-guangzhou.myqcloud.com/'));
+  db.products.replaceOne({_id: p._id}, p);
+});
+```
+
+### 为什么不用腾讯云官方 `cos-nodejs-sdk-v5`
+
+用官方 SDK 则代码绑死 COS,本地开发需要用真 COS bucket(或 mock),不方便。`@aws-sdk/client-s3` 是 S3 协议通用客户端,MinIO / COS / OSS / 自建 S3 都能跑,一套代码两头用。腾讯 COS 官方文档也推荐 S3 兼容路径对接。
+
+---
+
 ## 替代方案:国内云(如果运营主体转到国内)
 
 如果未来团长主体转到国内(不再跨境),可以用腾讯云轻量 + 国内机房。一样的 docker-compose,但要:
