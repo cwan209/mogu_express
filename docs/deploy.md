@@ -36,10 +36,16 @@
 
 最低要求:**1 vCPU / 1 GB RAM / 20 GB disk**(Mongo + MinIO + Node)
 
+> 本项目面向**澳洲华人跨境团购**:商家在澳洲、顾客多在中国大陆。**推荐 AU 机房**主要因为:
+> 1. 商家管理后台访问延迟低
+> 2. HuePay 跨境支付回调路径更直
+> 3. 中国顾客小程序访问可通过 Cloudflare / Akamai 国内 PoP 加速
+
 推荐:
-- **AU 用户低延迟**:DigitalOcean SYD / Vultr Sydney / AWS Lightsail ap-southeast-2(墨悉尼)
-- **预算紧**:Hetzner / Contabo(欧洲机房,延迟略高但便宜)
-- **完全托管**:Fly.io(免运维,但 Mongo 要用他们的 Postgres 替代或外接 MongoDB Atlas)
+- **首选**:DigitalOcean SYD / Vultr Sydney / AWS Lightsail ap-southeast-2(悉尼/墨尔本机房)
+- **预算紧**:Hetzner / Contabo(欧洲机房,中澳/中欧延迟类似 200-300ms,商家可接受)
+- **完全托管**:Fly.io(免运维,但 Mongo 要外接 MongoDB Atlas)
+- **国内节点**(备用,若商家希望中国顾客体验最好):腾讯云香港 / 阿里云香港 + CDN 加速,但要考虑 ICP 备案和 HuePay 跨境回调的防火墙问题
 
 ## 部署步骤
 
@@ -259,8 +265,11 @@ uptime:
 2. 恢复:`docker cp ./backup mogu_mongo:/tmp/dump && docker exec mogu_mongo mongorestore /tmp/dump`
 3. 重建容器:`docker compose down && docker compose up -d`(volume 保留数据)
 
-## 替代方案:腾讯云轻量(国内用户)
+## 替代方案:国内云(如果运营主体转到国内)
 
-如果团长在国内 / 顾客在国内,腾讯云轻量 + 香港机房或东南亚机房延迟可接受。一样的 docker-compose,只是 Nginx 反代 + 域名备案这步走腾讯流程。
+如果未来团长主体转到国内(不再跨境),可以用腾讯云轻量 + 国内机房。一样的 docker-compose,但要:
+- 域名走 ICP 备案流程(~2 周)
+- 支付从 HuePay 切到**直连微信支付商户号**(省掉跨境手续费)
+- 去掉时区的 TZ=Asia/Shanghai(国内机房默认 CST)
 
-但 **AU 用户优先选 AU 机房**,往返延迟差几百毫秒影响支付体验。
+但本项目当前定位是**澳洲商家 + 国内顾客**,HuePay 跨境支付是核心价值,所以 **AU 机房 + HuePay** 的组合最合适。

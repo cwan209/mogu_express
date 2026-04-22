@@ -2,6 +2,10 @@
 
 无需任何"真实"账号(微信云开发 / HuePay 商户号),全部用本地 Docker 容器替代。
 
+> **业务提醒**:本项目面向澳洲华人跨境团购。顾客付 **¥ CNY**,商家收 **AUD**。
+> 本地 stub 模式下,`createOrder` 接受 CNY 分,"模拟支付成功"按钮一键完成全链路;
+> 拿到 HuePay 凭证后改 `HUEPAY_STUB=0` + 5 个环境变量就能切生产。
+
 ## 前提
 
 - macOS / Linux + **Docker Desktop**(`docker version` 能看到 server 号)
