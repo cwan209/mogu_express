@@ -1,9 +1,12 @@
 <view class="tuan-card" bindtap="onTap" wx:if="{{tuan}}">
   <image class="cover" src="{{tuan.coverFileId}}" mode="aspectFill" lazy-load />
-  <view class="badge badge-{{tuan.status}}">
-    <text wx:if="{{tuan.status === 'on_sale'}}">进行中</text>
-    <text wx:elif="{{tuan.status === 'scheduled'}}">待开团</text>
-    <text wx:elif="{{tuan.status === 'closed'}}">已截团</text>
+  <view class="badges">
+    <view class="badge badge-{{tuan.status}}">
+      <text wx:if="{{tuan.status === 'on_sale'}}">进行中</text>
+      <text wx:elif="{{tuan.status === 'scheduled'}}">待开团</text>
+      <text wx:elif="{{tuan.status === 'closed'}}">已截团</text>
+    </view>
+    <view class="badge badge-joined" wx:if="{{tuan.joined}}">已团</view>
   </view>
   <view class="body">
     <view class="title">{{tuan.title}}</view>

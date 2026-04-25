@@ -220,8 +220,18 @@ function generateOrderNo() {
 module.exports = {
   async listTuans() {
     await delay();
-    return TUANS.filter((t) => t.status === 'on_sale' || t.status === 'scheduled')
-      .sort((a, b) => (a.endAt < b.endAt ? -1 : 1));
+    // 计算"已团":本地订单里 payStatus='paid' 的 tuanId 集合
+    const orders = storeGet(K_ORDERS, []);
+    const joined = new Set();
+    for (const o of orders) {
+      if (o.payStatus === 'paid' || ['paid', 'shipped', 'completed'].includes(o.status)) {
+        for (const it of o.items || []) if (it.tuanId) joined.add(it.tuanId);
+      }
+    }
+    return TUANS
+      .filter((t) => t.status === 'on_sale' || t.status === 'scheduled')
+      .sort((a, b) => (a.endAt < b.endAt ? -1 : 1))
+      .map((t) => ({ ...t, joined: joined.has(t._id) }));
   },
   async getTuanDetail(tuanId) {
     await delay();

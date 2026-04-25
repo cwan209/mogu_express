@@ -14,10 +14,14 @@
   background: #F0F0F0;
 }
 
-.badge {
+.badges {
   position: absolute;
   top: 16rpx;
   left: 16rpx;
+  display: flex;
+  gap: 8rpx;
+}
+.badge {
   padding: 6rpx 14rpx;
   border-radius: 40rpx;
   font-size: 22rpx;
@@ -27,6 +31,7 @@
 .badge-on_sale   { background: var(--brand-color); }
 .badge-scheduled { background: var(--warning-color); }
 .badge-closed    { background: rgba(0, 0, 0, 0.5); }
+.badge-joined    { background: #10B981; }   /* 绿色,区分于品牌红 */
 
 .body {
   padding: 20rpx 24rpx;
