@@ -18,6 +18,7 @@ const { TextArea } = Input;
 interface FormValues {
   title: string;
   description: string;
+  announcement: string;
   coverFileId: string;
   range: [Dayjs, Dayjs];
   status: TuanStatus;
@@ -58,7 +59,9 @@ export default function TuanEdit() {
     if (isEdit) {
       getTuan(id!).then((t) => {
         form.setFieldsValue({
-          title: t.title, description: t.description, coverFileId: t.coverFileId,
+          title: t.title, description: t.description,
+          announcement: t.announcement || '',
+          coverFileId: t.coverFileId,
           range: [dayjs(t.startAt), dayjs(t.endAt)], status: t.status,
         });
       });
@@ -100,6 +103,7 @@ export default function TuanEdit() {
   const onFinish = async (v: FormValues) => {
     const payload = {
       title: v.title, description: v.description || '',
+      announcement: v.announcement || '',
       coverFileId: v.coverFileId || '',
       startAt: v.range[0].toISOString(), endAt: v.range[1].toISOString(),
       status: v.status,
@@ -254,6 +258,17 @@ export default function TuanEdit() {
           </Form.Item>
           <Form.Item label="团介绍" name="description">
             <TextArea rows={3} maxLength={200} showCount placeholder="产地/自提/截团/发货等说明" />
+          </Form.Item>
+          <Form.Item
+            label="团公告"
+            name="announcement"
+            tooltip="顾客点进团详情时弹窗显示。换行用 Enter,支持纯文本"
+          >
+            <TextArea rows={5} maxLength={500} showCount
+              placeholder="例:
+1. 周三 18:00 截团,过时不候
+2. 冷链运费必拍,墨尔本市区配送
+3. 有问题加客服微信:xxx" />
           </Form.Item>
           <Form.Item label="封面图" name="coverFileId" valuePropName="value">
             <ImageUploader mode="single" purpose="tuan_cover" />

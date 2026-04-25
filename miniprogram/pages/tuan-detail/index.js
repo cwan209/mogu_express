@@ -13,6 +13,9 @@ Page({
     startAtText: '',
     endAtText: '',
 
+    // ── 团公告弹窗 ──
+    announcementOpen: false,
+
     // ── 分组 ──
     groups: [],                // [{section, products, minSort}]
     hasAnySection: false,      // false → 退化单列,不显示 sidebar
@@ -46,6 +49,7 @@ Page({
         const list = products || [];
         const { groups, hasAnySection } = groupProducts(list);
         const firstSection = (groups[0] && groups[0].section) || '';
+        const hasAnnouncement = !!(tuan && tuan.announcement && tuan.announcement.trim());
         this.setData({
           tuan,
           products: list,
@@ -56,7 +60,10 @@ Page({
           loading: false,
           startAtText: tuan.startAt ? short(tuan.startAt) : '',
           endAtText: tuan.endAt ? short(tuan.endAt) : '',
+          // 公告弹窗:进入团详情时展示;每个 page 实例只弹一次
+          announcementOpen: hasAnnouncement && !this._announcementShown,
         });
+        if (hasAnnouncement) this._announcementShown = true;
         wx.setNavigationBarTitle({ title: tuan.title || '团详情' });
       })
       .catch((err) => {
@@ -85,6 +92,16 @@ Page({
       activeSection: section,
       activeGroupProducts: (g && g.products) || [],
     });
+  },
+
+  // ── 团公告 ──
+  onCloseAnnouncement() {
+    this.setData({ announcementOpen: false });
+  },
+  onShowAnnouncement() {
+    if (this.data.tuan && this.data.tuan.announcement) {
+      this.setData({ announcementOpen: true });
+    }
   },
 
   onPoster() {

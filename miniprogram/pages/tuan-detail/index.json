@@ -3,6 +3,7 @@
   "usingComponents": {
     "countdown": "/components/countdown/index",
     "product-card": "/components/product-card/index",
-    "t-search": "tdesign-miniprogram/search/search"
+    "t-search": "tdesign-miniprogram/search/search",
+    "t-dialog": "tdesign-miniprogram/dialog/dialog"
   }
 }

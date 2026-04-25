@@ -12,7 +12,8 @@ export interface Tuan {
   _id: string;
   title: string;
   description: string;
-  coverFileId: string;    // M1 用外链 URL 占位,M3+ 改云存储 fileId
+  announcement?: string;  // 团公告(进入团详情时弹窗显示)
+  coverFileId: string;
   startAt: string;        // ISO
   endAt: string;          // ISO
   status: TuanStatus;

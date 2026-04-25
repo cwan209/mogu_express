@@ -17,6 +17,10 @@
         <text class="dot">·</text>
         <text>截止 {{endAtText}}</text>
       </view>
+      <view wx:if="{{tuan.announcement}}" class="announcement-entry" bindtap="onShowAnnouncement">
+        <text class="announcement-icon">📢</text>
+        <text class="announcement-text">查看团公告</text>
+      </view>
     </view>
   </view>
 
@@ -104,3 +108,13 @@
 
 <view class="loading-mask" wx:elif="{{loading}}">加载中...</view>
 <view class="empty" wx:else>团不存在或已删除</view>
+
+<!-- 团公告弹窗 -->
+<t-dialog
+  visible="{{announcementOpen}}"
+  title="📢 团公告"
+  content="{{tuan.announcement}}"
+  confirm-btn="知道了"
+  bind:confirm="onCloseAnnouncement"
+  bind:close="onCloseAnnouncement"
+/>

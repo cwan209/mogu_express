@@ -72,6 +72,7 @@ async function create({ payload }) {
   const doc = {
     title: payload.title,
     description: payload.description || '',
+    announcement: payload.announcement || '',
     coverFileId: payload.coverFileId || '',
     startAt: new Date(payload.startAt),
     endAt: new Date(payload.endAt),

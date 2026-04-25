@@ -190,3 +190,17 @@
   padding: 120rpx 0;
   color: var(--text-secondary);
 }
+
+/* 团公告入口 */
+.announcement-entry {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 12rpx;
+  padding: 6rpx 16rpx;
+  background: rgba(255, 167, 38, 0.12);
+  border: 1rpx solid rgba(255, 167, 38, 0.4);
+  border-radius: 24rpx;
+  font-size: 22rpx;
+  color: #B26900;
+}
+.announcement-icon { margin-right: 6rpx; }
