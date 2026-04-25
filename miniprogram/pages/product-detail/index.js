@@ -72,6 +72,17 @@ Page({
       }
       await cartService.upsertCart({ productId: this.data.productId, quantity: newQty });
       wx.showToast({ title: '已加入购物车', icon: 'success' });
+      // 加购后回到所属团详情(若返回栈里就是团详情则 navigateBack,否则 redirectTo)
+      setTimeout(() => {
+        const pages = getCurrentPages();
+        const prev = pages[pages.length - 2];
+        const tuanId = this.data.tuan && this.data.tuan._id;
+        if (prev && prev.route === 'pages/tuan-detail/index') {
+          wx.navigateBack();
+        } else if (tuanId) {
+          wx.redirectTo({ url: '/pages/tuan-detail/index?id=' + tuanId });
+        }
+      }, 600);
     } catch (err) {
       wx.showToast({ title: err.message || '加入失败', icon: 'none' });
     }
