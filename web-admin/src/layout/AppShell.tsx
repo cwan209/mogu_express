@@ -10,6 +10,7 @@ function matchTopKey(pathname: string): string {
   if (pathname.startsWith('/products'))   return '/products';
   if (pathname.startsWith('/categories')) return '/categories';
   if (pathname.startsWith('/orders'))     return '/orders';
+  if (pathname.startsWith('/settings'))   return '/settings';
   return '/dashboard';
 }
 
@@ -26,6 +27,7 @@ export default function AppShell() {
     { key: '/products',  label: '商品' },
     { key: '/categories',label: '分类' },
     { key: '/orders',    label: '订单' },
+    { key: '/settings',  label: '站点设置' },
   ];
 
   return (

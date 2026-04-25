@@ -204,6 +204,7 @@ async function main() {
     addresses:  db.collection('addresses'),
     carts:      db.collection('carts'),
     orders:     db.collection('orders'),
+    settings:   db.collection('settings'),
   };
 
   if (reset) {
@@ -222,6 +223,12 @@ async function main() {
   await upsertMany(colls.products, products);
   await upsertMany(colls.tuan_items, tuanItems);
   await upsertMany(colls.admins, admins);
+  await upsertMany(colls.settings, [{
+    _id: 'home_banner',
+    title: '接龙团购',
+    subtitle: '本周进行中 · 尽快接龙抢货',
+    updatedAt: new Date(),
+  }]);
 
   // 索引
   await colls.users.createIndex({ _openid: 1 }, { unique: true });

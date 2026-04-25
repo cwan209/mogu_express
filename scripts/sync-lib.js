@@ -28,6 +28,7 @@ const LIBS = [
       'cloudfunctions/_admin/exportOrders',
       'cloudfunctions/_admin/uploadImage',
       'cloudfunctions/_admin/tuanItemCRUD',
+      'cloudfunctions/_admin/updateHomeBanner',
     ],
     destName: 'jwt.js',
     kind: 'file',

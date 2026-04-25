@@ -206,6 +206,9 @@ const K_USER     = 'mock_user';
 const K_ADDRESS  = 'mock_addresses';
 const K_CART     = 'mock_cart';
 const K_ORDERS   = 'mock_orders';
+const K_BANNER   = 'mock_home_banner';
+
+const DEFAULT_BANNER = { title: '接龙团购', subtitle: '本周进行中 · 尽快接龙抢货' };
 
 function storeGet(k, def) {
   try { const v = wx.getStorageSync(k); return v == null || v === '' ? def : v; }
@@ -221,6 +224,11 @@ function generateOrderNo() {
 }
 
 module.exports = {
+  async getHomeBanner() {
+    await delay(60);
+    return storeGet(K_BANNER, DEFAULT_BANNER);
+  },
+
   async listTuans() {
     await delay();
     // 计算"已团":本地订单里 payStatus='paid' 的 tuanId 集合

@@ -60,6 +60,8 @@ async function mockDispatch(name: string, data: any): Promise<any> {
     case '_admin/listAllOrders': return mockListAllOrders(data);
     case '_admin/markShipped':   return mockMarkShipped(data);
     case '_admin/markCompleted': return mockMarkCompleted(data);
+    case '_admin/updateHomeBanner': return mockUpdateHomeBanner(data);
+    case 'getHomeBanner':           return mockGetHomeBanner();
 
     // ==== Public ====
     case 'listTuans':        return { code: 0, items: mockDb.listTuans() };
@@ -282,6 +284,22 @@ function mockGetProductDetail({ tuanItemId, productId }: any) {
   if (!product) return { code: 2, message: 'not found' };
   const tuan = mockDb.getTuan(product.tuanId);
   return { code: 0, product, tuan, participants: [] };
+}
+
+// ── Home banner mock(localStorage 持久化) ──
+const HOME_BANNER_KEY = 'mogu_express_home_banner_v1';
+const DEFAULT_BANNER = { title: '接龙团购', subtitle: '本周进行中 · 尽快接龙抢货' };
+function readBanner() {
+  try { return JSON.parse(localStorage.getItem(HOME_BANNER_KEY) || '') || DEFAULT_BANNER; }
+  catch { return { ...DEFAULT_BANNER }; }
+}
+function mockGetHomeBanner() { return { code: 0, banner: readBanner() }; }
+function mockUpdateHomeBanner({ title, subtitle }: any) {
+  const t = (title || '').toString().trim();
+  if (!t) return { code: 1, message: 'title required' };
+  const banner = { title: t, subtitle: (subtitle || '').toString().trim() };
+  localStorage.setItem(HOME_BANNER_KEY, JSON.stringify(banner));
+  return { code: 0, banner };
 }
 
 // type re-exports for convenience

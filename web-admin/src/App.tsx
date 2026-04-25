@@ -8,6 +8,7 @@ import ProductEdit from './pages/ProductEdit';
 import Categories from './pages/Categories';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
+import Settings from './pages/Settings';
 import RequireAuth from './auth/RequireAuth';
 import AppShell from './layout/AppShell';
 
@@ -36,6 +37,8 @@ export default function App() {
 
         <Route path="/orders" element={<Orders />} />
         <Route path="/orders/:id" element={<OrderDetail />} />
+
+        <Route path="/settings" element={<Settings />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
