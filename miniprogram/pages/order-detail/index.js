@@ -6,6 +6,7 @@ const { short } = require('../../utils/date.js');
 const STATUS_LABEL = {
   pending_pay: '待支付',
   paid: '已支付',
+  refund_requested: '退款申请中',
   shipped: '已发货',
   completed: '已完成',
   cancelled: '已取消',
@@ -60,6 +61,23 @@ Page({
           this.load();
         }).catch((err) => {
           wx.showToast({ title: err.message || '取消失败', icon: 'none' });
+        });
+      },
+    });
+  },
+
+  onRequestRefund() {
+    wx.showModal({
+      title: '申请退款',
+      content: '申请后需等待管理员审核，审核通过后款项将原路退回。确认申请？',
+      confirmText: '确认申请',
+      success: (r) => {
+        if (!r.confirm) return;
+        orderService.requestRefund(this.data.orderId).then(() => {
+          wx.showToast({ title: '申请已提交', icon: 'success' });
+          this.load();
+        }).catch((err) => {
+          wx.showToast({ title: err.message || '申请失败', icon: 'none' });
         });
       },
     });

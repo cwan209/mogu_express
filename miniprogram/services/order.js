@@ -54,7 +54,12 @@ function cancelOrder(orderId) {
   return callFunction('cancelOrder', { orderId });
 }
 
+function requestRefund(orderId) {
+  if (config.useMock) return mock.requestRefund(orderId);
+  return callFunction('requestRefund', { orderId });
+}
+
 module.exports = {
   createOrder, simulatePay, queryHuepayOrder,
-  listMyOrders, getOrderDetail, cancelOrder,
+  listMyOrders, getOrderDetail, cancelOrder, requestRefund,
 };

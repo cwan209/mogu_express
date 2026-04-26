@@ -9,6 +9,7 @@
 .status-card.status-shipped     { background: #1677FF; }
 .status-card.status-completed   { background: rgba(0,0,0,0.5); }
 .status-card.status-cancelled   { background: var(--text-placeholder); }
+.status-card.status-refund_requested { background: #E37D1A; }
 .status-card.status-refunded    { background: var(--error-color); }
 .status-card .s { font-size: 34rpx; font-weight: 700; display: block; }
 .status-card .hint { font-size: 24rpx; opacity: 0.9; margin-top: 6rpx; display: block; }

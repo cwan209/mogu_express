@@ -104,6 +104,7 @@ export interface Paged<T> {
 export type OrderStatus =
   | 'pending_pay'
   | 'paid'
+  | 'refund_requested'
   | 'shipped'
   | 'completed'
   | 'cancelled'
@@ -147,6 +148,10 @@ export interface Order {
   payStatus: PayStatus;
   paidAt?: string;
   shippedAt?: string;
+  refundRequestedAt?: string;
+  refundedAt?: string;
+  refundId?: string;
+  refundRejectReason?: string;
   createdAt: string;
   updatedAt: string;
 }

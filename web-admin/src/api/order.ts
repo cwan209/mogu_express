@@ -35,6 +35,14 @@ export async function markCompleted(id: string): Promise<void> {
   await callCloud('_admin/markCompleted', { orderId: id });
 }
 
+export async function processRefund(
+  orderId: string,
+  action: 'approve' | 'reject',
+  rejectReason?: string,
+): Promise<void> {
+  await callCloud('_admin/processRefund', { orderId, action, ...(rejectReason ? { rejectReason } : {}) });
+}
+
 export interface ExportResult {
   code: number;
   filename: string;

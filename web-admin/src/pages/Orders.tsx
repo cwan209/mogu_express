@@ -4,13 +4,14 @@ import { DownloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { Dayjs } from 'dayjs';
 import type { Order, OrderStatus, Tuan } from '../types';
-import { listOrders, markShipped, exportOrders } from '../api/order';
+import { listOrders, markShipped, exportOrders, processRefund } from '../api/order';
 import { listTuans } from '../api/tuan';
 import { formatAud } from '../utils/money';
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pending_pay: 'orange',
   paid: 'green',
+  refund_requested: 'volcano',
   shipped: 'blue',
   completed: 'default',
   cancelled: 'default',
@@ -20,6 +21,7 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 const STATUS_LABEL: Record<OrderStatus, string> = {
   pending_pay: '待支付',
   paid: '已支付',
+  refund_requested: '退款申请中',
   shipped: '已发货',
   completed: '已完成',
   cancelled: '已取消',
@@ -62,6 +64,43 @@ export default function Orders() {
     try {
       await markShipped(id);
       message.success('已标记发货');
+      load();
+    } catch (e: any) {
+      message.error(e.message || '操作失败');
+    }
+  };
+
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; orderId: string }>({ open: false, orderId: '' });
+  const [rejectReason, setRejectReason] = useState('');
+
+  const onApproveRefund = (id: string) => {
+    Modal.confirm({
+      title: '批准退款',
+      content: '确认批准此退款申请？款项将原路退还给用户。',
+      okText: '确认批准',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await processRefund(id, 'approve');
+          message.success('退款已批准');
+          load();
+        } catch (e: any) {
+          message.error(e.message || '操作失败');
+        }
+      },
+    });
+  };
+
+  const onRejectRefund = (id: string) => {
+    setRejectReason('');
+    setRejectModal({ open: true, orderId: id });
+  };
+
+  const doReject = async () => {
+    try {
+      await processRefund(rejectModal.orderId, 'reject', rejectReason || undefined);
+      message.success('已拒绝退款申请');
+      setRejectModal({ open: false, orderId: '' });
       load();
     } catch (e: any) {
       message.error(e.message || '操作失败');
@@ -209,12 +248,35 @@ export default function Orders() {
                 {o.status === 'paid' && (
                   <Button size="small" type="primary" onClick={() => onShip(o._id)}>发货</Button>
                 )}
+                {o.status === 'refund_requested' && (
+                  <>
+                    <Button size="small" danger onClick={() => onApproveRefund(o._id)}>批准</Button>
+                    <Button size="small" onClick={() => onRejectRefund(o._id)}>拒绝</Button>
+                  </>
+                )}
               </Space>
             ),
           },
         ]}
         scroll={{ x: 1200 }}
       />
+
+      <Modal
+        title="拒绝退款申请"
+        open={rejectModal.open}
+        onOk={doReject}
+        onCancel={() => setRejectModal({ open: false, orderId: '' })}
+        okText="确认拒绝"
+        cancelText="取消"
+      >
+        <p style={{ marginBottom: 8 }}>填写拒绝原因（可选，将记录在订单中）：</p>
+        <Input.TextArea
+          rows={3}
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          placeholder="例：商品已准备发货，无法退款"
+        />
+      </Modal>
     </Card>
   );
 }

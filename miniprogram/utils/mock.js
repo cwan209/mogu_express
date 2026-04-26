@@ -481,4 +481,17 @@ module.exports = {
     }
     return o;
   },
+
+  async requestRefund(orderId) {
+    await delay();
+    const list = storeGet(K_ORDERS, []);
+    const o = list.find((x) => x._id === orderId);
+    if (!o) throw new Error('订单不存在');
+    if (o.status !== 'paid') throw new Error('仅已支付未发货订单可申请退款');
+    o.status = 'refund_requested';
+    o.refundRequestedAt = new Date().toISOString();
+    o.updatedAt = new Date().toISOString();
+    storeSet(K_ORDERS, list);
+    return { code: 0 };
+  },
 };

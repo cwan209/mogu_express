@@ -61,7 +61,9 @@ async function mockDispatch(name: string, data: any): Promise<any> {
     case '_admin/markShipped':   return mockMarkShipped(data);
     case '_admin/markCompleted': return mockMarkCompleted(data);
     case '_admin/updateHomeBanner': return mockUpdateHomeBanner(data);
+    case '_admin/processRefund':    return mockProcessRefund(data);
     case 'getHomeBanner':           return mockGetHomeBanner();
+    case 'requestRefund':           return mockRequestRefund(data);
 
     // ==== Public ====
     case 'listTuans':        return { code: 0, items: mockDb.listTuans() };
@@ -300,6 +302,35 @@ function mockUpdateHomeBanner({ title, subtitle }: any) {
   const banner = { title: t, subtitle: (subtitle || '').toString().trim() };
   localStorage.setItem(HOME_BANNER_KEY, JSON.stringify(banner));
   return { code: 0, banner };
+}
+
+function mockRequestRefund({ orderId }: any) {
+  const o = mockDb.getOrder(orderId);
+  if (!o) return { code: 2, message: 'not found' };
+  if (o.status !== 'paid') return { code: 3, message: '仅已支付未发货订单可申请退款' };
+  mockDb.updateOrderStatus(orderId, 'refund_requested');
+  return { code: 0 };
+}
+
+function mockProcessRefund({ orderId, action, rejectReason }: any) {
+  const o = mockDb.getOrder(orderId);
+  if (!o) return { code: 2, message: 'not found' };
+  if (o.status !== 'refund_requested') return { code: 3, message: '仅退款申请中的订单可处理' };
+  if (action === 'approve') {
+    mockDb.updateOrderStatus(orderId, 'refunded');
+    mockDb.rollbackSold(o.items);
+  } else if (action === 'reject') {
+    mockDb.updateOrderStatus(orderId, 'paid');
+    // 记录拒绝原因(直接写 store)
+    const fresh = mockDb.getOrder(orderId);
+    if (fresh && rejectReason) {
+      // updateOrderStatus 已经写回了,这里补充 rejectReason — 通过再次 getOrder 绕过 readonly
+      (fresh as any).refundRejectReason = rejectReason;
+    }
+  } else {
+    return { code: 1, message: 'action must be approve or reject' };
+  }
+  return { code: 0 };
 }
 
 // type re-exports for convenience

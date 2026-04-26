@@ -1,9 +1,11 @@
 <view class="container" wx:if="{{order}}">
   <view class="status-card status-{{order.status}}">
     <text class="s">{{statusLabel[order.status]}}</text>
-    <text class="hint" wx:if="{{order.status === 'paid'}}">已支付,等待团长发货</text>
+    <text class="hint" wx:if="{{order.status === 'paid'}}">已支付，等待团长发货</text>
+    <text class="hint" wx:elif="{{order.status === 'refund_requested'}}">退款申请审核中，请等待</text>
     <text class="hint" wx:elif="{{order.status === 'shipped'}}">已发货</text>
     <text class="hint" wx:elif="{{order.status === 'cancelled'}}">订单已取消</text>
+    <text class="hint" wx:elif="{{order.status === 'refunded'}}">退款已完成</text>
   </view>
 
   <view class="card">
@@ -45,6 +47,10 @@
 
   <view class="actions" wx:if="{{order.status === 'pending_pay'}}">
     <t-button theme="default" block bind:tap="onCancel">取消订单</t-button>
+  </view>
+
+  <view class="actions" wx:if="{{order.status === 'paid'}}">
+    <t-button theme="default" block bind:tap="onRequestRefund">申请退款</t-button>
   </view>
 </view>
 

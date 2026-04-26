@@ -276,6 +276,22 @@ export const seedOrders: Order[] = [
     status: 'pending_pay', payStatus: 'pending',
     createdAt: isoOffset(-15 * 60 * 1000), updatedAt: isoOffset(-15 * 60 * 1000),
   },
+  {
+    _id: 'order_seed_6',
+    orderNo: 'MG20260415091230006',
+    outTradeNo: 'TRADESEED6',
+    openid: 'mock_customer_f',
+    userSnapshot: { name: '陈小姐', phone: '0411222333' },
+    items: [
+      { tuanItemId: 'ti_prod_201_tuan_002', productId: 'prod_201', tuanId: 'tuan_002', title: '澳洲谷饲和牛 M9+', price: 8800, quantity: 1, subtotal: 8800, coverFileId: IMG.wagyu },
+    ],
+    amount: 8800,
+    shipping: { recipient: '陈小姐', phone: '0411222333', line1: '3 Collins St', suburb: 'Melbourne', state: 'VIC', postcode: '3000' },
+    remark: '尽快退款',
+    status: 'refund_requested', payStatus: 'paid',
+    paidAt: isoOffset(-1 * DAY), refundRequestedAt: isoOffset(-2 * HOUR),
+    createdAt: isoOffset(-1 * DAY), updatedAt: isoOffset(-2 * HOUR),
+  },
 ];
 
 // 保留旧导出名以兼容老 import

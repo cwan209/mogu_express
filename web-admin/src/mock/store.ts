@@ -272,8 +272,21 @@ export const mockDb = {
     const i = db.orders.findIndex((o) => o._id === id);
     if (i < 0) return undefined;
     const now = new Date().toISOString();
-    db.orders[i] = { ...db.orders[i], status, updatedAt: now, ...(status === 'shipped' ? { shippedAt: now } : {}) };
+    const extra: Partial<Order> = {};
+    if (status === 'shipped') extra.shippedAt = now;
+    if (status === 'refund_requested') extra.refundRequestedAt = now;
+    if (status === 'refunded') { extra.refundedAt = now; extra.refundId = 'MOCK_REFUND_' + id; }
+    db.orders[i] = { ...db.orders[i], status, updatedAt: now, ...extra };
     persist(db); return db.orders[i];
+  },
+
+  rollbackSold(items: Array<{ tuanItemId?: string; productId: string; quantity: number }>): void {
+    for (const it of items) {
+      const tiId = it.tuanItemId || it.productId;
+      const j = db.tuanItems.findIndex((ti) => ti._id === tiId);
+      if (j >= 0) db.tuanItems[j] = { ...db.tuanItems[j], sold: Math.max(0, db.tuanItems[j].sold - it.quantity) };
+    }
+    persist(db);
   },
 
   // ---- 统计 ----

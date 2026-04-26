@@ -763,6 +763,111 @@ test('_admin/uploadImage 拒绝超过 3MB', async () => {
   assert.equal(r.code, 5);
 });
 
+// ── 退款功能 ──
+
+const REFUND_TUAN = { _id: 'rt', status: 'on_sale', endAt: new Date(Date.now() + 86400e3), title: 'RT', productCount: 1, createdAt: new Date() };
+const REFUND_TUAN_ITEM = { _id: 'rti_1', tuanId: 'rt', productId: 'rp', price: 500, stock: 10, sold: 5, sort: 1, section: null, participantCount: 3 };
+const REFUND_ORDER_PAID = {
+  _id: 'ro1', orderNo: 'RO001', outTradeNo: 'RTRADE1', _openid: 'u1',
+  userSnapshot: { name: '退款测试', phone: '0400111222' },
+  items: [{ tuanItemId: 'rti_1', productId: 'rp', tuanId: 'rt', title: '测试商品', price: 500, quantity: 2, subtotal: 1000, coverFileId: '' }],
+  amount: 1000, shipping: { recipient: '退款测试', phone: '0400111222', line1: '1 St', line2: '', suburb: 'M', state: 'VIC', postcode: '3000' },
+  remark: '', status: 'paid', payStatus: 'paid',
+  paidAt: new Date(), createdAt: new Date(), updatedAt: new Date(),
+};
+
+test('requestRefund 成功:paid 订单 + on_sale 团 → refund_requested', async () => {
+  reset({
+    tuans: [REFUND_TUAN],
+    tuan_items: [REFUND_TUAN_ITEM],
+    orders: [REFUND_ORDER_PAID],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('requestRefund').main({ orderId: 'ro1' });
+  assert.equal(r.code, 0, r.message);
+  // 读回确认状态
+  const snap = await shim.database().collection('orders').doc('ro1').get();
+  assert.equal(snap.data.status, 'refund_requested');
+});
+
+test('requestRefund 越权:非订单拥有者 → 403', async () => {
+  reset({
+    tuans: [REFUND_TUAN],
+    tuan_items: [REFUND_TUAN_ITEM],
+    orders: [REFUND_ORDER_PAID],
+  });
+  shim.__setContext({ OPENID: 'u2' });
+  const r = await requireCf('requestRefund').main({ orderId: 'ro1' });
+  assert.equal(r.code, 403);
+});
+
+test('requestRefund 状态错误:shipped 订单 → code 3', async () => {
+  const shipped = { ...REFUND_ORDER_PAID, _id: 'ro2', status: 'shipped' };
+  reset({
+    tuans: [REFUND_TUAN],
+    tuan_items: [REFUND_TUAN_ITEM],
+    orders: [shipped],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('requestRefund').main({ orderId: 'ro2' });
+  assert.equal(r.code, 3);
+});
+
+test('requestRefund 团已关闭:tuan.status=closed → code 5', async () => {
+  const closedTuan = { ...REFUND_TUAN, status: 'closed' };
+  reset({
+    tuans: [closedTuan],
+    tuan_items: [REFUND_TUAN_ITEM],
+    orders: [REFUND_ORDER_PAID],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('requestRefund').main({ orderId: 'ro1' });
+  assert.equal(r.code, 5);
+});
+
+test('processRefund approve:refund_requested → refunded + sold 回滚', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  const refundReqOrder = { ...REFUND_ORDER_PAID, _id: 'ro3', status: 'refund_requested', refundRequestedAt: new Date() };
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    tuans: [REFUND_TUAN],
+    tuan_items: [{ ...REFUND_TUAN_ITEM, sold: 5 }],
+    orders: [refundReqOrder],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/processRefund').main({ token, orderId: 'ro3', action: 'approve' });
+  assert.equal(r.code, 0, r.message);
+  // 订单状态变 refunded
+  const db = shim.database();
+  const oSnap = await db.collection('orders').doc('ro3').get();
+  assert.equal(oSnap.data.status, 'refunded');
+  assert.equal(oSnap.data.payStatus, 'refunded');
+  assert.ok(oSnap.data.refundId);
+  // sold 回滚:5 - 2 = 3
+  const tiSnap = await db.collection('tuan_items').doc('rti_1').get();
+  assert.equal(tiSnap.data.sold, 3);
+});
+
+test('processRefund reject:refund_requested → paid + 记录原因', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  const refundReqOrder = { ...REFUND_ORDER_PAID, _id: 'ro4', status: 'refund_requested', refundRequestedAt: new Date() };
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    tuans: [REFUND_TUAN],
+    tuan_items: [REFUND_TUAN_ITEM],
+    orders: [refundReqOrder],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/processRefund').main({ token, orderId: 'ro4', action: 'reject', rejectReason: '商品已备货' });
+  assert.equal(r.code, 0, r.message);
+  const db = shim.database();
+  const oSnap = await db.collection('orders').doc('ro4').get();
+  assert.equal(oSnap.data.status, 'paid');
+  assert.equal(oSnap.data.refundRejectReason, '商品已备货');
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {
