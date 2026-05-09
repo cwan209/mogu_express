@@ -45,7 +45,8 @@
 .status-shipped     { background: #1677FF; }
 .status-completed   { background: rgba(0,0,0,0.4); }
 .status-cancelled   { background: var(--text-placeholder); }
-.status-refunded    { background: var(--error-color); }
+.status-refunded         { background: var(--error-color); }
+.status-refund_requested { background: #E37D1A; }
 
 .items {
   display: flex;

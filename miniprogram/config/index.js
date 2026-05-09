@@ -1,8 +1,11 @@
 // config/index.js - 小程序全局配置
 // 替换为真实云环境 ID(微信开发者工具 → 云开发 → 环境 ID)
+//
+// AppID: wx2215d63c22d8e947(企业小程序,2026-04-19 起用,可走云开发)
+// 云开发迁移步骤见 docs/cloud-migration.md
 
 module.exports = {
-  // 云开发环境 ID
+  // 云开发环境 ID(开通云开发后填入,例如 'mogu-express-2gXXXXX')
   cloudEnvId: 'PLACEHOLDER_ENV_ID',
 
   // 数据后端选择(三选一):
