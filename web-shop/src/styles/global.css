@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* antd-mobile 主题变量覆盖 — 品牌色红 */
+  --adm-color-primary: #E34D59;
+  --adm-color-success: #00B578;
+  --adm-color-warning: #FF8F1F;
+  --adm-color-danger: #FF3141;
+
+  --adm-color-text: #333333;
+  --adm-color-text-secondary: #666666;
+  --adm-color-weak: #999999;
+  --adm-color-light: #CCCCCC;
+
+  --adm-color-background: #FFFFFF;
+  --adm-color-fill-content: #F5F5F5;
+
+  --adm-border-radius: 6px;
+  --adm-font-size-main: 14px;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #F5F5F5;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* PC 端时居中显示,模拟手机视口 */
+@media (min-width: 768px) {
+  #root {
+    max-width: 480px;
+    margin: 0 auto;
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.08);
+    background: #FFFFFF;
+    min-height: 100vh;
+  }
+}

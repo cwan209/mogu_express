@@ -30,8 +30,18 @@ const LIBS = [
       'cloudfunctions/_admin/tuanItemCRUD',
       'cloudfunctions/_admin/updateHomeBanner',
       'cloudfunctions/_admin/processRefund',
+      'cloudfunctions/verifyOtp',
     ],
     destName: 'jwt.js',
+    kind: 'file',
+  },
+  {
+    name: 'sms',
+    src: path.join(root, 'cloudfunctions/_lib/sms/index.js'),
+    targets: [
+      'cloudfunctions/sendOtp',
+    ],
+    destName: 'sms.js',
     kind: 'file',
   },
   {

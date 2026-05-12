@@ -128,7 +128,21 @@ async function main() {
     }
 
     // 注入上下文
-    const openid = req.header('x-mock-openid') || req.body?._openid || null;
+    // 优先级: JWT token > x-mock-openid header > body._openid
+    let openid = null;
+    if (req.body?.token) {
+      try {
+        const jwt = require('../../cloudfunctions/_lib/auth/jwt');
+        const payload = jwt.verify(req.body.token, process.env.JWT_SECRET || 'local_dev_secret_CHANGE_ME');
+        openid = payload.openid;
+      } catch (err) {
+        // 401 仅在受保护路由,云函数自己判断 OPENID 是否为空
+        console.warn(`[auth] invalid token for ${name}:`, err.message);
+      }
+    }
+    if (!openid) {
+      openid = req.header('x-mock-openid') || req.body?._openid || null;
+    }
     shim.__setContext({ OPENID: openid });
 
     let mod;
