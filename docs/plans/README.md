@@ -14,7 +14,8 @@
 | 2026-04-26 | [退款功能(请求 + 审批)](./2026-04-26-refund-feature.md) | 已实施 |
 | 2026-05-09 | [项目暂停 — 商业模式重新评估](./2026-05-09-business-model-pause.md) | 决策点,无代码 |
 | 2026-05-11 | [H5 商城重做(替代微信小程序)](./2026-05-11-h5-pivot.md) | M0' → M3' 已实施 |
-| 2026-05-12 | [IaC 化 — Terraform + GitHub Actions](./2026-05-12-iac-terraform.md) | 当前实施中 |
+| 2026-05-12 | [IaC 化 — Terraform + GitHub Actions](./2026-05-12-iac-terraform.md) | 已实施 |
+| 2026-05-13 | [COS state backend + Mongo 备份](./2026-05-13-cos-backend-mongo-backup.md) | 已实施 |
 
 ## 写新 plan 的约定
 
