@@ -132,7 +132,7 @@ async function main() {
     let openid = null;
     if (req.body?.token) {
       try {
-        const jwt = require('../../cloudfunctions/_lib/auth/jwt');
+        const jwt = require(path.join(CF_ROOT, '_lib/auth/jwt'));
         const payload = jwt.verify(req.body.token, process.env.JWT_SECRET || 'local_dev_secret_CHANGE_ME');
         openid = payload.openid;
       } catch (err) {
