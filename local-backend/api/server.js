@@ -54,6 +54,27 @@ async function connectMongo() {
   return { client, db };
 }
 
+// 开发期工具:on_sale 团到期后自动续期 7 天
+// 防止种子数据放久了团过期、本地下单失败
+// 生产部署时设 BUMP_EXPIRED_TUANS=0 关掉
+async function bumpExpiredTuansOnStartup(db) {
+  if (process.env.BUMP_EXPIRED_TUANS === '0') return;
+  const now = new Date();
+  const r = await db.collection('tuans').updateMany(
+    { status: 'on_sale', endAt: { $lt: now } },
+    {
+      $set: {
+        startAt: new Date(now.getTime() - 3 * 24 * 3600 * 1000),
+        endAt:   new Date(now.getTime() + 7 * 24 * 3600 * 1000),
+        updatedAt: now,
+      },
+    },
+  );
+  if (r.modifiedCount > 0) {
+    console.log(`[startup] bumped ${r.modifiedCount} expired on_sale tuan(s) +7d`);
+  }
+}
+
 // ---- Step 3: 云函数加载器 ----
 const CF_ROOT = process.env.CLOUDFUNCTIONS_ROOT ||
                 path.resolve(__dirname, '../../cloudfunctions');
@@ -81,7 +102,13 @@ function loadCloudFn(dir) {
 
 // ---- Step 4: Express ----
 async function main() {
-  await connectMongo();
+  const { db } = await connectMongo();
+  // 开发期:启动时把过期的 on_sale 团续 7 天,避免种子数据放久了下单失败
+  try {
+    await bumpExpiredTuansOnStartup(db);
+  } catch (err) {
+    console.warn('[startup] bumpExpiredTuans failed:', err.message);
+  }
   // S3 兼容存储初始化(失败不致命,某些场景如纯离线测试可跳过)
   try {
     await s3.ensureBucket();

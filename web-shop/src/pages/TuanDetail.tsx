@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  NavBar, SearchBar, Skeleton, Empty, Modal, Image, Stepper, Tag,
+  NavBar, SearchBar, Skeleton, Empty, Modal, Image, Stepper, Tag, Button, Badge,
 } from 'antd-mobile';
+import { ShopbagOutline } from 'antd-mobile-icons';
 import { getTuanDetail } from '../api/tuan';
 import { groupProducts, filterProducts } from '../utils/groupProducts';
 import { getCountdown } from '../utils/date';
@@ -86,7 +87,7 @@ export default function TuanDetail() {
   void tick;
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 pb-20">
       <NavBar onBack={() => nav(-1)}>{tuan.title}</NavBar>
 
       <div className="bg-white">
@@ -172,6 +173,37 @@ export default function TuanDetail() {
         actions={[{ key: 'ok', text: '我知道了', primary: true }]}
         onClose={() => setAnnounceOpen(false)}
       />
+
+      <FloatingCart />
+    </div>
+  );
+}
+
+function FloatingCart() {
+  const nav = useNavigate();
+  const qty = useCartStore((s) => s.totalQty());
+  const total = useCartStore((s) => s.totalCents());
+  return (
+    <div className="fixed left-0 right-0 bottom-0 max-w-[480px] mx-auto bg-white border-t border-gray-200 p-3 flex items-center justify-between z-50 shadow-lg">
+      <div className="flex items-center gap-3" onClick={() => nav('/cart')}>
+        <Badge content={qty > 0 ? String(qty) : null}>
+          <div className="w-11 h-11 rounded-full bg-brand text-white flex items-center justify-center">
+            <ShopbagOutline fontSize={22} />
+          </div>
+        </Badge>
+        <div>
+          <div className="text-brand font-medium text-base">{formatCny(total)}</div>
+          <div className="text-xs text-gray-400">{qty} 件商品</div>
+        </div>
+      </div>
+      <Button
+        color="primary"
+        size="large"
+        disabled={qty === 0}
+        onClick={() => nav('/checkout')}
+      >
+        去结算
+      </Button>
     </div>
   );
 }
