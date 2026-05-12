@@ -1,0 +1,16 @@
+# Staging 环境变量。复制为 staging.tfvars 并填实际值。
+# Workspace: mogu-staging (Terraform Cloud)
+
+env_name    = "staging"
+root_domain = "mogu-express.com"   # 跟 prod 同一根域,只是子域加 -staging
+region      = "ap-hongkong"
+
+# 1C2G HK 套餐(staging 用小点的省钱,大约 ¥18/月)
+lighthouse_bundle_id    = "bundle_starter_lin_1c2g80g_h_intl"
+lighthouse_blueprint_id = "lhbp-fdtbngta"   # Ubuntu 22.04 LTS HK
+
+# 跟 prod 共用同一对 SSH key 即可
+ssh_public_key = "ssh-ed25519 AAAA... mogu-deploy"
+
+cos_bucket_basename = "mogu-express-images"
+cos_region          = "ap-hongkong"

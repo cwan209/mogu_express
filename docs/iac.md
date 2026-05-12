@@ -3,6 +3,18 @@
 > 基础设施全部用 Terraform 声明,GitHub Actions 自动 plan/apply/deploy。
 > 这是 H5 商城 + 团长后台的**生产部署唯一推荐路径**。手动部署见 `docs/deploy-tencent-hk.md`(已废弃,仅作 fallback)。
 
+## 三个环境
+
+| 环境 | 触发 | 域名 | VPS 套餐 | 用途 |
+|---|---|---|---|---|
+| **local** | `local-backend/docker-compose.yml up` | `localhost:5174/5173/4000` | — | 开发机 docker 栈,无 Terraform |
+| **staging** | PR open / sync | `*-staging.${ROOT_DOMAIN}` | 1C2G ~¥18/月 | 集成验证、商家试用、HuePay 沙箱 |
+| **prod** | merge to main | `*.${ROOT_DOMAIN}` | 2C4G ~¥24/月 | 生产服务 |
+
+环境变量自动注入:
+- **前端**(Vite):`--mode staging` / `--mode prod`,加载对应 `.env.staging` / `.env.prod`
+- **后端**:GH secret `APP_ENV_STAGING` / `APP_ENV_PROD`(base64 编码 deploy/.env)+ Terraform 输出的 COS 凭证拼接
+
 ## 一次性初始化(开发只做一次)
 
 ### 1. 注册账号 & 收齐凭证
@@ -19,15 +31,19 @@
 - 把域名注册商处的 nameserver 改成 `f1g1ns1.dnspod.net` 和 `f1g1ns2.dnspod.net`
 - 等 1-24 小时生效
 
-### 2. 配置 Terraform Cloud
+### 2. 配置 Terraform Cloud(多 workspace)
 
 1. 注册 https://app.terraform.io,创建 organization `mogu-express`
-2. 创建 workspace `prod`,Execution Mode 选 **Remote**
-3. workspace → Variables 添加:
+2. 创建 **两个** workspace,都打 tag `mogu-express`:
+   - `mogu-staging` — Execution Mode = Remote
+   - `mogu-prod` — Execution Mode = Remote
+3. **每个 workspace** → Variables 添加(env category):
    - `TF_VAR_tencent_secret_id` (sensitive)
    - `TF_VAR_tencent_secret_key` (sensitive)
    - `TF_VAR_ssh_public_key`(SSH 公钥,见下)
-   - `TF_VAR_root_domain`(你的域名)
+   - `TF_VAR_root_domain`(你的域名,两个 workspace 同一个)
+   - `TF_VAR_env_name` = `staging` / `prod`(对应 workspace 名)
+   - `TF_VAR_lighthouse_bundle_id` = `bundle_starter_lin_1c2g80g_h_intl`(staging) / `bundle_starter_lin_2c4g80g_h_intl`(prod)
 
 ### 3. 生成 SSH 密钥对
 
@@ -46,31 +62,39 @@ cat ~/.ssh/mogu_deploy       # 私钥 → GitHub repo secret SSH_DEPLOY_KEY
 - `TENCENTCLOUD_SECRET_ID`
 - `TENCENTCLOUD_SECRET_KEY`
 - `SSH_DEPLOY_KEY` — SSH 私钥内容(`cat ~/.ssh/mogu_deploy`)
-- `SSH_DEPLOY_PUBLIC_KEY` — SSH 公钥(给 terraform plan/apply 用)
-- `APP_ENV_PROD` — 整个 `.env` 文件用 `base64 -w0 .env` 后的内容(含 JWT_SECRET / HuePay / SMS 凭证)
+- `SSH_DEPLOY_PUBLIC_KEY` — SSH 公钥
+- `APP_ENV_PROD` — Prod `.env` 文件 `base64 -w0 deploy/.env` 后的内容
+- `APP_ENV_STAGING` — Staging `.env` 文件 `base64 -w0 deploy/.env` 后的内容(JWT/HuePay/SMS 凭证跟 prod 必须不同!)
 
 **Repository variables:**
 - `ROOT_DOMAIN` — 你的根域名,如 `mogu-express.com`
 
-### 5. 首次 apply(本地或 GHA 都行)
+### 5. 首次 apply(本地走一次)
 
-**本地走一次**(验证语法 + 创建资源):
 ```bash
 cd terraform
 terraform login                       # 写入 TF Cloud token
-terraform init                        # 拉 providers + 接 backend
+
+# 先 apply staging
+terraform workspace select mogu-staging
+terraform init
+cp environments/staging.tfvars.example environments/staging.tfvars
+nano environments/staging.tfvars      # 填实际值
+terraform plan  -var-file=environments/staging.tfvars
+terraform apply -var-file=environments/staging.tfvars
+
+# 再 apply prod
+terraform workspace select mogu-prod
 cp environments/prod.tfvars.example environments/prod.tfvars
-nano environments/prod.tfvars         # 填实际值
-terraform plan
-terraform apply
+nano environments/prod.tfvars
+terraform plan  -var-file=environments/prod.tfvars
+terraform apply -var-file=environments/prod.tfvars
 ```
 
-**或直接通过 GHA 自动 apply**:开 PR 改 `terraform/`,merge 后 GHA 自动 apply。
-
-apply 成功后 outputs 会列出:
-- `vps_public_ip` — VPS 公网 IP
-- `cos_bucket` — COS 名
-- `fqdns` — shop/admin/api 三个完整域名
+完成后,后续修改:
+- 改 terraform/* 开 PR → GHA `terraform-plan.yml` 自动 plan **两个环境**,贴 PR comment
+- PR open/sync → GHA `terraform-apply.yml` **自动 apply staging**
+- merge to main → GHA `terraform-apply.yml` **自动 apply prod**
 
 ## 日常运维流程
 
@@ -84,14 +108,29 @@ apply 成功后 outputs 会列出:
 
 ### 改应用代码(web-shop / web-admin / cloudfunctions)
 
-1. 直接 push 到 main(或开 PR merge)
-2. **deploy-app.yml** workflow 自动:
-   - npm ci + build web-shop / web-admin
-   - 同步 _lib 到云函数
-   - 从最新 terraform-apply artifact 拿 VPS IP
-   - rsync 仓库 → VPS:/opt/mogu_express
-   - ssh 跑 `docker compose up -d --build`
-   - curl /health 健康检查
+1. 开 PR(branch → main) → **deploy-app.yml** 自动部署到 **staging**
+2. 在 staging 上手机扫码 / 团长 admin 验证
+3. Merge to main → **deploy-app.yml** 自动部署到 **prod**
+
+Workflow 自动:
+- npm ci + `vite build --mode <staging|prod>`(读对应 `.env.staging` / `.env.prod`)
+- 同步 _lib 到云函数
+- 从对应环境 terraform-apply artifact 拿 VPS IP + COS 凭证
+- 选对应 secret(`APP_ENV_STAGING` / `APP_ENV_PROD`)拼 `.env`
+- rsync 仓库 → VPS:`/opt/mogu_express`
+- ssh 跑 `docker compose up -d --build`
+- curl `/health` 健康检查
+
+### 本地开发(local 环境)
+
+不走 Terraform。直接:
+```bash
+cd local-backend && docker compose up -d        # mongo + minio + api
+cd web-shop && npm run dev                       # 5174
+cd web-admin && npm run dev                      # 5173
+```
+
+`.env.development` 文件(已就位)默认 mock + localhost:4000。无需配 secret。
 
 ### 灾备演练 — 重建整套环境
 

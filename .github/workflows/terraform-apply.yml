@@ -6,59 +6,88 @@ on:
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform-apply.yml'
+  pull_request:
+    types: [labeled, opened, synchronize, reopened]
+    paths:
+      - 'terraform/**'
   workflow_dispatch:
+    inputs:
+      env:
+        description: '环境'
+        required: true
+        type: choice
+        options: [staging, prod]
 
 concurrency:
-  group: terraform-apply
+  group: terraform-apply-${{ github.event_name == 'pull_request' && 'staging' || (inputs.env || 'prod') }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  apply:
+  # Staging: PR open/sync 自动 apply
+  staging:
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && inputs.env == 'staging')
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./terraform
     env:
-      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+      TF_WORKSPACE: mogu-staging
+      TF_VAR_env_name:           staging
       TF_VAR_tencent_secret_id:  ${{ secrets.TENCENTCLOUD_SECRET_ID }}
       TF_VAR_tencent_secret_key: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
       TF_VAR_ssh_public_key:     ${{ secrets.SSH_DEPLOY_PUBLIC_KEY }}
       TF_VAR_root_domain:        ${{ vars.ROOT_DOMAIN }}
+      TF_VAR_lighthouse_bundle_id: bundle_starter_lin_1c2g80g_h_intl
     steps:
       - uses: actions/checkout@v4
-
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.6
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-
       - run: terraform init
-      - run: terraform validate
       - run: terraform apply -auto-approve -input=false
-
       - name: Export outputs
-        id: outputs
-        run: |
-          terraform output -json > outputs.json
-          echo "vps_ip=$(jq -r .vps_public_ip.value outputs.json)" >> $GITHUB_OUTPUT
-          echo "shop=$(jq  -r .fqdns.value.shop  outputs.json)" >> $GITHUB_OUTPUT
-          echo "admin=$(jq -r .fqdns.value.admin outputs.json)" >> $GITHUB_OUTPUT
-          echo "api=$(jq   -r .fqdns.value.api   outputs.json)" >> $GITHUB_OUTPUT
-
+        run: terraform output -json > outputs.json
       - uses: actions/upload-artifact@v4
         with:
-          name: terraform-outputs
+          name: terraform-outputs-staging
           path: terraform/outputs.json
           retention-days: 30
 
-      - name: Summary
-        run: |
-          echo "### Terraform Apply Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- VPS: \`${{ steps.outputs.outputs.vps_ip }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Shop: https://${{ steps.outputs.outputs.shop }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Admin: https://${{ steps.outputs.outputs.admin }}" >> $GITHUB_STEP_SUMMARY
-          echo "- API: https://${{ steps.outputs.outputs.api }}" >> $GITHUB_STEP_SUMMARY
+  # Prod: main push or workflow_dispatch(env=prod)
+  prod:
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.env == 'prod')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./terraform
+    env:
+      TF_WORKSPACE: mogu-prod
+      TF_VAR_env_name:           prod
+      TF_VAR_tencent_secret_id:  ${{ secrets.TENCENTCLOUD_SECRET_ID }}
+      TF_VAR_tencent_secret_key: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
+      TF_VAR_ssh_public_key:     ${{ secrets.SSH_DEPLOY_PUBLIC_KEY }}
+      TF_VAR_root_domain:        ${{ vars.ROOT_DOMAIN }}
+      TF_VAR_lighthouse_bundle_id: bundle_starter_lin_2c4g80g_h_intl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.6
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - run: terraform init
+      - run: terraform apply -auto-approve -input=false
+      - name: Export outputs
+        run: terraform output -json > outputs.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-prod
+          path: terraform/outputs.json
+          retention-days: 90

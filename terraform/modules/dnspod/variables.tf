@@ -4,6 +4,12 @@ variable "root_domain" {
 }
 
 variable "vps_ip" {
-  description = "VPS 公网 IP,从 lighthouse module output 传入"
+  description = "VPS 公网 IP"
   type        = string
 }
+
+# Staging 用 shop-staging / admin-staging / api-staging
+# Prod 用 shop / admin / api
+variable "shop_sub_domain" { type = string }
+variable "admin_sub_domain" { type = string }
+variable "api_sub_domain" { type = string }

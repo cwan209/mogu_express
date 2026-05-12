@@ -1,3 +1,7 @@
+output "env_name" {
+  value = var.env_name
+}
+
 output "vps_public_ip" {
   description = "VPS 公网 IP,用于 SSH 部署"
   value       = module.lighthouse.public_ip
@@ -9,11 +13,7 @@ output "vps_instance_id" {
 
 output "fqdns" {
   description = "完整域名"
-  value = {
-    shop  = "shop.${var.root_domain}"
-    admin = "admin.${var.root_domain}"
-    api   = "api.${var.root_domain}"
-  }
+  value       = local.fqdns
 }
 
 output "cos_bucket" {

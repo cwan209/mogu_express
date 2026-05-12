@@ -13,15 +13,22 @@ permissions:
 jobs:
   plan:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [staging, prod]
     defaults:
       run:
         working-directory: ./terraform
     env:
-      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+      TF_WORKSPACE: mogu-${{ matrix.env }}
+      TF_VAR_env_name:           ${{ matrix.env }}
       TF_VAR_tencent_secret_id:  ${{ secrets.TENCENTCLOUD_SECRET_ID }}
       TF_VAR_tencent_secret_key: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
       TF_VAR_ssh_public_key:     ${{ secrets.SSH_DEPLOY_PUBLIC_KEY }}
       TF_VAR_root_domain:        ${{ vars.ROOT_DOMAIN }}
+      # staging 用小套餐
+      TF_VAR_lighthouse_bundle_id: ${{ matrix.env == 'staging' && 'bundle_starter_lin_1c2g80g_h_intl' || 'bundle_starter_lin_2c4g80g_h_intl' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +38,7 @@ jobs:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
       - name: fmt
+        if: matrix.env == 'staging'   # fmt 跟环境无关,跑一次就行
         run: terraform fmt -check -recursive
 
       - name: init
@@ -40,19 +48,17 @@ jobs:
         run: terraform validate
 
       - name: plan
-        id: plan
         run: |
-          terraform plan -no-color -input=false -out=tfplan 2>&1 | tee plan.txt
-          # 截断到 60k 字符给 GH 评论
-          head -c 60000 plan.txt > plan.trunc.txt
+          terraform plan -no-color -input=false 2>&1 | tee plan-${{ matrix.env }}.txt
+          head -c 50000 plan-${{ matrix.env }}.txt > plan-${{ matrix.env }}.trunc.txt
 
       - uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
         with:
           script: |
             const fs = require('fs');
-            const body = '## Terraform Plan\n```\n' +
-              fs.readFileSync('terraform/plan.trunc.txt', 'utf8') +
+            const env = '${{ matrix.env }}';
+            const body = '## Terraform Plan — `' + env + '`\n```\n' +
+              fs.readFileSync('terraform/plan-' + env + '.trunc.txt', 'utf8') +
               '\n```';
             github.rest.issues.createComment({
               issue_number: context.issue.number,

@@ -1,5 +1,14 @@
 # ===== 顶层变量 =====
 
+variable "env_name" {
+  description = "环境名(staging / prod),决定资源命名和域名前缀"
+  type        = string
+  validation {
+    condition     = contains(["staging", "prod"], var.env_name)
+    error_message = "env_name must be one of: staging, prod"
+  }
+}
+
 variable "tencent_secret_id" {
   description = "腾讯云 SecretId(从 GH Actions secret TENCENTCLOUD_SECRET_ID 注入)"
   type        = string
@@ -39,10 +48,10 @@ variable "lighthouse_blueprint_id" {
   default     = "lhbp-fdtbngta"
 }
 
-variable "lighthouse_instance_name" {
-  description = "VPS 实例名"
+variable "lighthouse_instance_name_prefix" {
+  description = "VPS 实例名前缀,实际名 = ${prefix}-${env_name}"
   type        = string
-  default     = "mogu-express-prod"
+  default     = "mogu-express"
 }
 
 variable "ssh_public_key" {

@@ -1,7 +1,7 @@
 output "fqdns" {
   value = {
-    shop  = "shop.${var.root_domain}"
-    admin = "admin.${var.root_domain}"
-    api   = "api.${var.root_domain}"
+    shop  = "${var.shop_sub_domain}.${var.root_domain}"
+    admin = "${var.admin_sub_domain}.${var.root_domain}"
+    api   = "${var.api_sub_domain}.${var.root_domain}"
   }
 }
