@@ -37,6 +37,8 @@ jobs:
         working-directory: ./terraform
     env:
       TF_WORKSPACE: mogu-staging
+      TENCENTCLOUD_SECRET_ID:    ${{ secrets.TENCENTCLOUD_SECRET_ID }}
+      TENCENTCLOUD_SECRET_KEY:   ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
       TF_VAR_env_name:           staging
       TF_VAR_tencent_secret_id:  ${{ secrets.TENCENTCLOUD_SECRET_ID }}
       TF_VAR_tencent_secret_key: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
@@ -48,7 +50,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.6
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
       - run: terraform init
       - run: terraform apply -auto-approve -input=false
       - name: Export outputs
@@ -70,6 +71,8 @@ jobs:
         working-directory: ./terraform
     env:
       TF_WORKSPACE: mogu-prod
+      TENCENTCLOUD_SECRET_ID:    ${{ secrets.TENCENTCLOUD_SECRET_ID }}
+      TENCENTCLOUD_SECRET_KEY:   ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
       TF_VAR_env_name:           prod
       TF_VAR_tencent_secret_id:  ${{ secrets.TENCENTCLOUD_SECRET_ID }}
       TF_VAR_tencent_secret_key: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
@@ -81,7 +84,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.6
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
       - run: terraform init
       - run: terraform apply -auto-approve -input=false
       - name: Export outputs

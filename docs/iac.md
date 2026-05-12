@@ -21,29 +21,35 @@
 
 | 项 | 拿到什么 | 用途 |
 |---|---|---|
-| 腾讯云账号 | SecretId / SecretKey(访问管理 → API 密钥) | Terraform 调腾讯云 API |
-| Terraform Cloud | API Token(用户设置 → Tokens) | TF 远程 state 后端 |
+| 腾讯云账号 | SecretId / SecretKey(访问管理 → API 密钥) | Terraform 调腾讯云 API + COS state |
 | GitHub repo | 仓库管理员权限 | 配置 secrets |
 | 域名注册商 | 任一已实名的域名 | DNSPod 接管 |
+
+> State 后端用**腾讯云 COS**(不再依赖 Terraform Cloud),减少外部账号。
 
 **域名接入 DNSPod**:
 - 腾讯云控制台 → DNSPod → 添加域名
 - 把域名注册商处的 nameserver 改成 `f1g1ns1.dnspod.net` 和 `f1g1ns2.dnspod.net`
 - 等 1-24 小时生效
 
-### 2. 配置 Terraform Cloud(多 workspace)
+### 2. 创建 Terraform State Bucket(一次性 bootstrap)
 
-1. 注册 https://app.terraform.io,创建 organization `mogu-express`
-2. 创建 **两个** workspace,都打 tag `mogu-express`:
-   - `mogu-staging` — Execution Mode = Remote
-   - `mogu-prod` — Execution Mode = Remote
-3. **每个 workspace** → Variables 添加(env category):
-   - `TF_VAR_tencent_secret_id` (sensitive)
-   - `TF_VAR_tencent_secret_key` (sensitive)
-   - `TF_VAR_ssh_public_key`(SSH 公钥,见下)
-   - `TF_VAR_root_domain`(你的域名,两个 workspace 同一个)
-   - `TF_VAR_env_name` = `staging` / `prod`(对应 workspace 名)
-   - `TF_VAR_lighthouse_bundle_id` = `bundle_starter_lin_1c2g80g_h_intl`(staging) / `bundle_starter_lin_2c4g80g_h_intl`(prod)
+State 存腾讯云 COS。**鸡蛋问题** — state bucket 自己不能用 TF 管,手动建一次:
+
+1. 腾讯云控制台 → 对象存储 COS → 创建存储桶
+   - 名称:`mogu-tfstate-<你起的随机后缀>`(腾讯云会自动拼上 `-<appid>`)
+   - 地域:**香港(ap-hongkong)**
+   - 访问权限:**私有读写**(state 含敏感数据,必须私有!)
+   - 版本控制:**开启**(防 state 损坏可回滚)
+2. 复制完整 bucket 名(含 `-<appid>` 后缀)
+3. 编辑 `terraform/backend.tf`,把 `bucket` 字段改成实际值
+4. 本地 / CI 鉴权靠环境变量 `TENCENTCLOUD_SECRET_ID` 和 `TENCENTCLOUD_SECRET_KEY`(TF backend 自动读)
+
+**Workspaces**(本地 / CI 通过 `TF_WORKSPACE` env 切换,或 `terraform workspace select <name>`):
+- `mogu-staging` — staging state
+- `mogu-prod` — prod state
+
+State 实际存放路径:`<bucket>/terraform/state/<workspace>.tfstate`
 
 ### 3. 生成 SSH 密钥对
 
@@ -58,13 +64,14 @@ cat ~/.ssh/mogu_deploy       # 私钥 → GitHub repo secret SSH_DEPLOY_KEY
 仓库 Settings → Secrets and variables → Actions:
 
 **Repository secrets:**
-- `TF_API_TOKEN` — Terraform Cloud token
-- `TENCENTCLOUD_SECRET_ID`
-- `TENCENTCLOUD_SECRET_KEY`
+- `TENCENTCLOUD_SECRET_ID` — 腾讯云 AK(同时给 TF provider + COS state backend 用)
+- `TENCENTCLOUD_SECRET_KEY` — 腾讯云 SK
 - `SSH_DEPLOY_KEY` — SSH 私钥内容(`cat ~/.ssh/mogu_deploy`)
-- `SSH_DEPLOY_PUBLIC_KEY` — SSH 公钥
+- `SSH_DEPLOY_PUBLIC_KEY` — SSH 公钥(用作 TF_VAR_ssh_public_key)
 - `APP_ENV_PROD` — Prod `.env` 文件 `base64 -w0 deploy/.env` 后的内容
 - `APP_ENV_STAGING` — Staging `.env` 文件 `base64 -w0 deploy/.env` 后的内容(JWT/HuePay/SMS 凭证跟 prod 必须不同!)
+
+> 不再需要 `TF_API_TOKEN`。State 后端走 COS,鉴权复用腾讯云凭证。
 
 **Repository variables:**
 - `ROOT_DOMAIN` — 你的根域名,如 `mogu-express.com`
@@ -73,18 +80,20 @@ cat ~/.ssh/mogu_deploy       # 私钥 → GitHub repo secret SSH_DEPLOY_KEY
 
 ```bash
 cd terraform
-terraform login                       # 写入 TF Cloud token
+# 凭证靠环境变量(也可写进 ~/.tencentcloud/credentials)
+export TENCENTCLOUD_SECRET_ID=AKIDxxxxxx
+export TENCENTCLOUD_SECRET_KEY=xxxxxx
 
 # 先 apply staging
-terraform workspace select mogu-staging
-terraform init
+export TF_WORKSPACE=mogu-staging
+terraform init                        # 初次会问要不要创建 workspace,选 yes
 cp environments/staging.tfvars.example environments/staging.tfvars
 nano environments/staging.tfvars      # 填实际值
 terraform plan  -var-file=environments/staging.tfvars
 terraform apply -var-file=environments/staging.tfvars
 
 # 再 apply prod
-terraform workspace select mogu-prod
+export TF_WORKSPACE=mogu-prod
 cp environments/prod.tfvars.example environments/prod.tfvars
 nano environments/prod.tfvars
 terraform plan  -var-file=environments/prod.tfvars
@@ -132,6 +141,15 @@ cd web-admin && npm run dev                      # 5173
 
 `.env.development` 文件(已就位)默认 mock + localhost:4000。无需配 secret。
 
+### Mongo 备份(自动)
+
+VPS 上 cron 每天 03:00 跑 `scripts/backup-mongo.sh`:
+- mongodump → `cos://<bucket>/backup/<env>/YYYY-MM-DD-HHMM.gz`
+- COS lifecycle:30d 转低频、60d 转归档、365d 删
+- 日志:`/var/log/mongo-backup.log`
+
+详见 `docs/disaster-recovery.md`(含恢复命令、各场景流程、监控建议)。
+
 ### 灾备演练 — 重建整套环境
 
 ```bash
@@ -157,7 +175,8 @@ docker exec -i mogu_mongo mongorestore --archive=/backup/mongo.gz --gzip
 
 | 症状 | 排查 |
 |---|---|
-| `terraform plan` 报 invalid credentials | TF Cloud workspace vars 是否填了 `TF_VAR_tencent_secret_*`?secretId 是否正确 |
+| `terraform plan` 报 invalid credentials | 检查 env `TENCENTCLOUD_SECRET_ID/KEY` 是否设置;CI 看 secret 是否拼写正确 |
+| `terraform init` 报 COS bucket 不存在 | 是否手动建了 state bucket?backend.tf 里 bucket 字段是否填正确(含 `-<appid>` 后缀)|
 | Lighthouse 实例 force replace | 改了 `bundle_id` 或 `blueprint_id` 触发。生产期不要改套餐;要升级请走腾讯云控制台 + `terraform import` |
 | COS bucket 创建失败 (`BucketAlreadyExists`) | 全局重名;改 `cos_bucket_basename` 或重 apply 让 random_id 重新生成后缀 |
 | DNSPod 记录 apply 报域名未授权 | 域名 nameserver 还没切到 DNSPod;等 24h 重试 |

@@ -16,6 +16,7 @@ packages:
   - curl
   - git
   - ufw
+  - cron
 
 runcmd:
   # ufw 防火墙
@@ -31,12 +32,33 @@ runcmd:
   - systemctl enable --now docker
   - usermod -aG docker ubuntu || true
 
+  # coscli — Mongo 备份脚本会用
+  - |
+    ARCH=$(dpkg --print-architecture)
+    case "$ARCH" in
+      amd64) COSCLI_URL="https://github.com/tencentyun/coscli/releases/latest/download/coscli-v1.0.4-linux-amd64" ;;
+      arm64) COSCLI_URL="https://github.com/tencentyun/coscli/releases/latest/download/coscli-v1.0.4-linux-arm64" ;;
+      *) echo "unsupported arch $ARCH"; exit 1 ;;
+    esac
+    curl -fsSL -o /usr/local/bin/coscli "$COSCLI_URL"
+    chmod +x /usr/local/bin/coscli
+
   # 时区
   - timedatectl set-timezone Asia/Shanghai
 
   # 拉仓库
   - mkdir -p /opt
   - git clone ${git_repo} /opt/mogu_express || (cd /opt/mogu_express && git pull)
+  - chmod +x /opt/mogu_express/scripts/backup-mongo.sh
+
+  # Mongo 备份 cron — 每天 03:00
+  - |
+    cat > /etc/cron.d/mogu-mongo-backup <<'CRON'
+    # m h dom mon dow user command
+    0 3 * * * ubuntu /opt/mogu_express/scripts/backup-mongo.sh >> /var/log/mongo-backup.log 2>&1
+    CRON
+    chmod 644 /etc/cron.d/mogu-mongo-backup
+  - touch /var/log/mongo-backup.log && chown ubuntu:ubuntu /var/log/mongo-backup.log
 
 write_files:
   - path: /etc/motd
@@ -47,5 +69,6 @@ write_files:
       API:   https://${api_domain}
       Code:  /opt/mogu_express
       Stack: docker compose -f /opt/mogu_express/deploy/docker-compose.production.yml ...
+      Backup log: /var/log/mongo-backup.log
 
 final_message: "mogu_express VPS bootstrap done. ETA: $UPTIME seconds"

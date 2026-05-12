@@ -22,6 +22,10 @@ jobs:
         working-directory: ./terraform
     env:
       TF_WORKSPACE: mogu-${{ matrix.env }}
+      # COS backend 从这两个 env 读凭证
+      TENCENTCLOUD_SECRET_ID:    ${{ secrets.TENCENTCLOUD_SECRET_ID }}
+      TENCENTCLOUD_SECRET_KEY:   ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
+      # provider 也用同一对凭证(变量名不同,各取所需)
       TF_VAR_env_name:           ${{ matrix.env }}
       TF_VAR_tencent_secret_id:  ${{ secrets.TENCENTCLOUD_SECRET_ID }}
       TF_VAR_tencent_secret_key: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
@@ -35,7 +39,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.6
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
       - name: fmt
         if: matrix.env == 'staging'   # fmt 跟环境无关,跑一次就行

@@ -25,10 +25,28 @@ resource "tencentcloud_cos_bucket" "images" {
     max_age_seconds = 3600
   }
 
+  # 临时文件 7 天清
   lifecycle_rules {
     filter_prefix = "tmp/"
     expiration {
       days = 7
+    }
+  }
+
+  # MongoDB 备份 — 转储路径 backup/YYYY-MM-DD-HHMM.gz
+  # 30d 转低频(半价),60d 转归档(再降),365d 删除
+  lifecycle_rules {
+    filter_prefix = "backup/"
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 60
+      storage_class = "ARCHIVE"
+    }
+    expiration {
+      days = 365
     }
   }
 }
