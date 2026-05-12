@@ -23,6 +23,7 @@ export interface CreateOrderRes {
   orderId: string;
   orderNo: string;
   outTradeNo: string;
+  amount: number;
   payParams: PayParams;
 }
 
@@ -31,7 +32,17 @@ export async function createOrder(payload: {
   addressId: string;
   remark?: string;
 }): Promise<CreateOrderRes> {
-  return callCloud('createOrder', payload);
+  // 后端返 { order: {_id, orderNo, outTradeNo, amount, ...}, payParams }
+  // 这里扁平化方便前端用
+  const r = await callCloud<any>('createOrder', payload);
+  return {
+    code: 0,
+    orderId: r.order._id,
+    orderNo: r.order.orderNo,
+    outTradeNo: r.order.outTradeNo,
+    amount: r.order.amount,
+    payParams: r.payParams,
+  };
 }
 
 export async function simulatePay(orderId: string): Promise<{ code: 0 }> {

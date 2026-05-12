@@ -1,0 +1,121 @@
+# 生产部署 — 腾讯云轻量 HK 一键栈
+#
+# 准备:
+#   1. VPS 已装 Docker + Docker Compose
+#   2. 域名 A 记录指向 VPS 公网 IP(shop / admin / api 三个二级域名)
+#   3. 复制 `.env.example` 为 `.env` 并填实际值
+#   4. 在仓库根目录跑过 `npm --prefix web-shop run build && npm --prefix web-admin run build`
+#      把 dist 上传到 VPS 同目录(或在 VPS 上跑)
+#
+# 启动:
+#   docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d
+#
+# 生产期建议:
+#   - MinIO 换成腾讯云 COS,只改 env(S3_ENDPOINT / S3_PUBLIC_URL / 凭证),其余不动
+#   - 关闭 MinIO 服务(注释掉 minio 段),减少资源占用
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: mogu_mongo
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - mongo_data:/data/db
+    command: ["--replSet", "rs0", "--bind_ip", "127.0.0.1,mongo"]
+    healthcheck:
+      test: |
+        echo 'try { rs.status().ok } catch(e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo:27017"}]}) }' | mongosh --quiet
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks: [mogunet]
+
+  minio:
+    # 生产用腾讯云 COS 时可注释掉这一段
+    image: minio/minio:latest
+    container_name: mogu_minio
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks: [mogunet]
+
+  api:
+    build: ../local-backend/api
+    container_name: mogu_api
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MONGO_URL: mongodb://mongo:27017/mogu_express?replicaSet=rs0
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_REGION: ${S3_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL}
+      S3_AUTO_CREATE_BUCKET: "false"
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      JWT_SECRET: ${JWT_SECRET}
+      BUMP_EXPIRED_TUANS: "0"
+      # OTP 短信(留空走 stub 模式,生产强烈建议配真实)
+      SMS_STUB: ${SMS_STUB:-1}
+      TENCENT_SMS_SECRET_ID: ${TENCENT_SMS_SECRET_ID:-}
+      TENCENT_SMS_SECRET_KEY: ${TENCENT_SMS_SECRET_KEY:-}
+      TENCENT_SMS_APP_ID: ${TENCENT_SMS_APP_ID:-}
+      TENCENT_SMS_SIGN: ${TENCENT_SMS_SIGN:-}
+      TENCENT_SMS_TEMPLATE_OTP: ${TENCENT_SMS_TEMPLATE_OTP:-}
+      TENCENT_SMS_REGION: ${TENCENT_SMS_REGION:-ap-guangzhou}
+      # HuePay
+      HUEPAY_STUB: ${HUEPAY_STUB:-1}
+      HUEPAY_API_BASE: ${HUEPAY_API_BASE:-}
+      HUEPAY_MERCHANT_ID: ${HUEPAY_MERCHANT_ID:-}
+      HUEPAY_APP_ID: ${HUEPAY_APP_ID:-}
+      HUEPAY_API_KEY: ${HUEPAY_API_KEY:-}
+      HUEPAY_SECRET: ${HUEPAY_SECRET:-}
+      HUEPAY_NOTIFY_URL: ${HUEPAY_NOTIFY_URL:-}
+      PORT: "4000"
+    volumes:
+      - ../cloudfunctions:/app/cloudfunctions:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [mogunet]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: mogu_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CADDY_EMAIL: ${CADDY_EMAIL}
+      SHOP_DOMAIN: ${SHOP_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../web-shop/dist:/srv/web-shop:ro
+      - ../web-admin/dist:/srv/web-admin:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks: [mogunet]
+
+networks:
+  mogunet:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  minio_data:
+  caddy_data:
+  caddy_config:

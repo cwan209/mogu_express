@@ -13,6 +13,7 @@ import Profile from './pages/Profile';
 import Addresses from './pages/Addresses';
 import Login from './pages/Login';
 import RegisterProfile from './pages/RegisterProfile';
+import Poster from './pages/Poster';
 
 function WithTabBar({ children }: { children: JSX.Element }) {
   return (
@@ -50,6 +51,7 @@ export default function App() {
       <Route path="/product/:id" element={<ProductDetail />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register-profile" element={<RegisterProfile />} />
+      <Route path="/share/poster/:type/:id" element={<Poster />} />
 
       {/* 需登录 — 主 tab */}
       <Route path="/orders" element={<Protected><WithTabBar><Orders /></WithTabBar></Protected>} />

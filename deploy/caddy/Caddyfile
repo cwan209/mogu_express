@@ -1,0 +1,60 @@
+# Caddy 反向代理 + 自动 Let's Encrypt SSL
+#
+# 域名替换为你自己的:
+#   - shop.your-domain.com    → 客户 H5(web-shop dist)
+#   - admin.your-domain.com   → 团长 Web 后台(web-admin dist)
+#   - api.your-domain.com     → 业务 API(Express)
+#
+# 邮箱(用于 LE 证书续期通知)在 docker-compose env CADDY_EMAIL 配置。
+
+{
+  email {$CADDY_EMAIL}
+  # 默认就走 production CA;本地试时可加 acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# === 客户 H5 商城 ===
+{$SHOP_DOMAIN} {
+  root * /srv/web-shop
+  encode gzip zstd
+  try_files {path} /index.html
+  file_server
+
+  # 静态资源长缓存
+  @assets {
+    path /assets/*
+  }
+  header @assets Cache-Control "public, max-age=31536000, immutable"
+}
+
+# === 团长 Web 后台 ===
+{$ADMIN_DOMAIN} {
+  root * /srv/web-admin
+  encode gzip zstd
+  try_files {path} /index.html
+  file_server
+
+  @assets {
+    path /assets/*
+  }
+  header @assets Cache-Control "public, max-age=31536000, immutable"
+}
+
+# === 业务 API ===
+{$API_DOMAIN} {
+  encode gzip zstd
+  reverse_proxy api:4000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote}
+    header_up X-Forwarded-For {remote}
+    header_up X-Forwarded-Proto {scheme}
+  }
+
+  # CORS — Web 后台跨域调 API
+  @options method OPTIONS
+  respond @options 204
+  header {
+    Access-Control-Allow-Origin "*"
+    Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers "Content-Type, Authorization, x-mock-openid"
+  }
+}

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   NavBar, SearchBar, Skeleton, Empty, Modal, Image, Stepper, Tag, Button, Badge,
 } from 'antd-mobile';
-import { ShopbagOutline } from 'antd-mobile-icons';
+import { ShopbagOutline, SendOutline } from 'antd-mobile-icons';
 import { getTuanDetail } from '../api/tuan';
 import { groupProducts, filterProducts } from '../utils/groupProducts';
 import { getCountdown } from '../utils/date';
@@ -88,7 +88,17 @@ export default function TuanDetail() {
 
   return (
     <div className="min-h-screen bg-gray-100 pb-20">
-      <NavBar onBack={() => nav(-1)}>{tuan.title}</NavBar>
+      <NavBar
+        onBack={() => nav(-1)}
+        right={
+          <SendOutline
+            fontSize={20}
+            onClick={() => nav(`/share/poster/tuan/${tuan._id}`)}
+          />
+        }
+      >
+        {tuan.title}
+      </NavBar>
 
       <div className="bg-white">
         {tuan.coverFileId && (

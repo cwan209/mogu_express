@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   NavBar, Swiper, Image, Skeleton, Empty, Stepper, Button, Tag, Toast,
 } from 'antd-mobile';
+import { SendOutline } from 'antd-mobile-icons';
 import { getProductDetail } from '../api/tuan';
 import { formatCny } from '../utils/money';
 import { getCountdown } from '../utils/date';
@@ -85,7 +86,17 @@ export default function ProductDetail() {
 
   return (
     <div className="min-h-screen bg-gray-100 pb-20">
-      <NavBar onBack={() => nav(-1)}>商品详情</NavBar>
+      <NavBar
+        onBack={() => nav(-1)}
+        right={
+          <SendOutline
+            fontSize={20}
+            onClick={() => nav(`/share/poster/product/${product._id}`)}
+          />
+        }
+      >
+        商品详情
+      </NavBar>
 
       {/* 图轮播 */}
       <div className="bg-white">
