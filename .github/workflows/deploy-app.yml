@@ -1,0 +1,122 @@
+name: Deploy App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web-shop/**'
+      - 'web-admin/**'
+      - 'cloudfunctions/**'
+      - 'local-backend/**'
+      - 'deploy/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy-app.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-app
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      VPS_USER: ubuntu
+      DEPLOY_PATH: /opt/mogu_express
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            web-shop/package-lock.json
+            web-admin/package-lock.json
+            local-backend/api/package-lock.json
+
+      - name: Install + build web-shop
+        run: |
+          cd web-shop
+          npm ci
+          npm run build
+
+      - name: Install + build web-admin
+        run: |
+          cd web-admin
+          npm ci
+          npm run build
+
+      - name: Sync shared _lib into cloudfunctions
+        run: node scripts/sync-lib.js
+
+      # 从最新一次 terraform-apply 拉 outputs(VPS IP 等)
+      - name: Fetch terraform outputs
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: terraform-apply.yml
+          name: terraform-outputs
+          path: ./tf-outputs
+          if_no_artifact_found: fail
+
+      - name: Read VPS IP
+        id: vps
+        run: |
+          VPS_IP=$(jq -r .vps_public_ip.value tf-outputs/outputs.json)
+          echo "ip=$VPS_IP" >> $GITHUB_OUTPUT
+          echo "VPS = $VPS_IP"
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ steps.vps.outputs.ip }} >> ~/.ssh/known_hosts
+
+      - name: Render .env from APP_ENV_PROD secret + terraform outputs
+        run: |
+          # APP_ENV_PROD 是 base64 编码的 .env 内容 secret
+          echo "${{ secrets.APP_ENV_PROD }}" | base64 -d > /tmp/app.env
+          # 追加 terraform 输出的动态值
+          echo "" >> /tmp/app.env
+          echo "S3_BUCKET=$(jq -r .cos_bucket.value tf-outputs/outputs.json)" >> /tmp/app.env
+          echo "S3_ENDPOINT=$(jq -r .cos_endpoint.value tf-outputs/outputs.json)" >> /tmp/app.env
+          echo "S3_PUBLIC_URL=$(jq -r .cos_public_url_prefix.value tf-outputs/outputs.json)" >> /tmp/app.env
+          echo "S3_ACCESS_KEY=$(jq -r .cos_subuser_access_key.value tf-outputs/outputs.json)" >> /tmp/app.env
+          echo "S3_SECRET_KEY=$(jq -r .cos_subuser_secret_key.value tf-outputs/outputs.json)" >> /tmp/app.env
+
+      - name: Rsync code to VPS
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '*.tfstate*' \
+            --exclude 'terraform/.terraform' \
+            ./ ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }}:${{ env.DEPLOY_PATH }}/
+
+      - name: Push .env
+        run: |
+          scp /tmp/app.env ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }}:${{ env.DEPLOY_PATH }}/deploy/.env
+
+      - name: Docker compose up
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }} <<'EOF'
+            set -e
+            cd /opt/mogu_express
+            # 首次安装 Docker(如未装)
+            if ! command -v docker >/dev/null; then
+              curl -fsSL https://get.docker.com | sudo sh
+              sudo usermod -aG docker $USER
+            fi
+            sudo docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build
+            sudo docker compose -f deploy/docker-compose.production.yml ps
+          EOF
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -fsSL --retry 5 --retry-delay 5 https://api.$(jq -r .fqdns.value.api tf-outputs/outputs.json | sed 's/^api\.//')/health || \
+            curl -fsSL --retry 5 --retry-delay 5 http://${{ steps.vps.outputs.ip }}:4000/health

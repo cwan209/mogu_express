@@ -125,55 +125,64 @@ interface PosterData {
   qrTarget: string;
 }
 
+// 字体串避开 `-apple-system`,某些浏览器在 canvas font 属性下不识别它会静默失败
+const FONT_FAMILY = '"PingFang SC", "Microsoft YaHei", sans-serif';
+
 async function renderPoster(canvas: HTMLCanvasElement, d: PosterData): Promise<string> {
+  // 等系统字体就绪,否则 measureText 会返 0
+  if ((document as any).fonts?.ready) {
+    try { await (document as any).fonts.ready; } catch {}
+  }
+
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, W, H);
 
-  // 顶部封面图(750x500)
+  // 顶部封面图(750x500)— 先画 brand 红做兜底,图加载成功再覆盖
+  ctx.fillStyle = '#E34D59';
+  ctx.fillRect(0, 0, W, 500);
+
   if (d.cover) {
     try {
       const img = await loadImage(d.cover);
       drawImageCover(ctx, img, 0, 0, W, 500);
-    } catch {
-      ctx.fillStyle = '#E34D59';
-      ctx.fillRect(0, 0, W, 500);
+    } catch (err) {
+      console.warn('[poster] cover load failed, keeping red fallback', err);
     }
-  } else {
-    ctx.fillStyle = '#E34D59';
-    ctx.fillRect(0, 0, W, 500);
   }
 
   // 渐变蒙层(顶部 logo 区可读性)
-  const grad = ctx.createLinearGradient(0, 0, 0, 200);
-  grad.addColorStop(0, 'rgba(0,0,0,0.4)');
+  const grad = ctx.createLinearGradient(0, 0, 0, 220);
+  grad.addColorStop(0, 'rgba(0,0,0,0.45)');
   grad.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, 200);
+  ctx.fillRect(0, 0, W, 220);
 
   // 顶部 logo
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 32px -apple-system, "PingFang SC", sans-serif';
+  ctx.font = `bold 36px ${FONT_FAMILY}`;
   ctx.fillText('🍄 蘑菇接龙', 40, 70);
 
-  // 标题区背景
+  // 标题区白底
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 500, W, H - 500);
 
   // 价格(大红字)
   ctx.fillStyle = '#E34D59';
-  ctx.font = 'bold 60px -apple-system, "PingFang SC", sans-serif';
-  ctx.fillText(d.priceText, 40, 600);
+  ctx.font = `bold 64px ${FONT_FAMILY}`;
+  ctx.fillText(d.priceText || '—', 40, 600);
 
-  // 标题(粗体)
+  // 标题
   ctx.fillStyle = '#222';
-  ctx.font = 'bold 36px -apple-system, "PingFang SC", sans-serif';
-  drawWrappedText(ctx, d.title, 40, 680, W - 80, 50, 2);
+  ctx.font = `bold 38px ${FONT_FAMILY}`;
+  drawWrappedText(ctx, d.title || '', 40, 690, W - 80, 52, 2);
 
-  // 副标题(灰色)
+  // 副标题
   ctx.fillStyle = '#666';
-  ctx.font = '26px -apple-system, "PingFang SC", sans-serif';
-  drawWrappedText(ctx, d.subtitle, 40, 820, W - 80, 38, 2);
+  ctx.font = `28px ${FONT_FAMILY}`;
+  drawWrappedText(ctx, d.subtitle || '', 40, 830, W - 80, 40, 2);
 
   // 分割线
   ctx.strokeStyle = '#EEE';
@@ -183,7 +192,7 @@ async function renderPoster(canvas: HTMLCanvasElement, d: PosterData): Promise<s
   ctx.lineTo(W - 40, 1080);
   ctx.stroke();
 
-  // QR 码(右下,260x260)
+  // QR 码
   try {
     const qrDataUrl = await QRCode.toDataURL(d.qrTarget, {
       width: 260,
@@ -199,15 +208,15 @@ async function renderPoster(canvas: HTMLCanvasElement, d: PosterData): Promise<s
 
   // QR 提示
   ctx.fillStyle = '#222';
-  ctx.font = 'bold 32px -apple-system, "PingFang SC", sans-serif';
+  ctx.font = `bold 34px ${FONT_FAMILY}`;
   ctx.fillText('扫码进店', 40, H - 220);
   ctx.fillStyle = '#999';
-  ctx.font = '24px -apple-system, "PingFang SC", sans-serif';
+  ctx.font = `26px ${FONT_FAMILY}`;
   ctx.fillText('微信扫一扫,立即接龙', 40, H - 170);
 
-  // 底部 footer
+  // footer
   ctx.fillStyle = '#999';
-  ctx.font = '20px -apple-system, "PingFang SC", sans-serif';
+  ctx.font = `22px ${FONT_FAMILY}`;
   ctx.fillText('蘑菇接龙 · 澳洲华人社区团购', 40, H - 60);
 
   return canvas.toDataURL('image/png');
@@ -216,9 +225,11 @@ async function renderPoster(canvas: HTMLCanvasElement, d: PosterData): Promise<s
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // 必须用 anonymous CORS 否则 canvas 会被污染,toDataURL 抛 SecurityError
+    // 失败就 reject,由调用方走红色兜底
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = (e) => reject(e);
     img.src = src;
   });
 }

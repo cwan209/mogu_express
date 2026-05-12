@@ -1,0 +1,64 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-apply.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: terraform-apply
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./terraform
+    env:
+      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+      TF_VAR_tencent_secret_id:  ${{ secrets.TENCENTCLOUD_SECRET_ID }}
+      TF_VAR_tencent_secret_key: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
+      TF_VAR_ssh_public_key:     ${{ secrets.SSH_DEPLOY_PUBLIC_KEY }}
+      TF_VAR_root_domain:        ${{ vars.ROOT_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.6
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - run: terraform init
+      - run: terraform validate
+      - run: terraform apply -auto-approve -input=false
+
+      - name: Export outputs
+        id: outputs
+        run: |
+          terraform output -json > outputs.json
+          echo "vps_ip=$(jq -r .vps_public_ip.value outputs.json)" >> $GITHUB_OUTPUT
+          echo "shop=$(jq  -r .fqdns.value.shop  outputs.json)" >> $GITHUB_OUTPUT
+          echo "admin=$(jq -r .fqdns.value.admin outputs.json)" >> $GITHUB_OUTPUT
+          echo "api=$(jq   -r .fqdns.value.api   outputs.json)" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: terraform/outputs.json
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          echo "### Terraform Apply Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- VPS: \`${{ steps.outputs.outputs.vps_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Shop: https://${{ steps.outputs.outputs.shop }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Admin: https://${{ steps.outputs.outputs.admin }}" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://${{ steps.outputs.outputs.api }}" >> $GITHUB_STEP_SUMMARY
