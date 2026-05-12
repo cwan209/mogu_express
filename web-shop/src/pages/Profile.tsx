@@ -1,2 +1,86 @@
-import Stub from './_Stub';
-export default function Profile() { return <Stub title="个人中心" />; }
+import { useNavigate } from 'react-router-dom';
+import { NavBar, List, Dialog, Image } from 'antd-mobile';
+import {
+  UserOutline, UnorderedListOutline, LocationOutline, RightOutline, ShopbagOutline,
+} from 'antd-mobile-icons';
+import { useAuthStore } from '../store/auth';
+import { useCartStore } from '../store/cart';
+
+export default function Profile() {
+  const nav = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const cartQty = useCartStore((s) => s.totalQty());
+
+  const onLogout = () => {
+    Dialog.confirm({
+      content: '确定退出登录?',
+      onConfirm: () => {
+        logout();
+        nav('/', { replace: true });
+      },
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <NavBar back={null}>我的</NavBar>
+
+      {/* 用户卡片 */}
+      <div className="bg-white p-4 flex items-center gap-3">
+        <Image
+          src=""
+          width={56}
+          height={56}
+          fallback={<div className="w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center text-2xl">{(user?.name || user?.phone || '?').slice(0, 1).toUpperCase()}</div>}
+          style={{ borderRadius: '50%' }}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="text-base font-medium">{user?.name || '未填写姓名'}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{user?.phone || '未绑定手机'}</div>
+        </div>
+      </div>
+
+      <List className="mt-2">
+        <List.Item
+          prefix={<UnorderedListOutline />}
+          arrow={<RightOutline />}
+          onClick={() => nav('/orders')}
+        >
+          我的订单
+        </List.Item>
+        <List.Item
+          prefix={<ShopbagOutline />}
+          arrow={<RightOutline />}
+          extra={cartQty > 0 ? `${cartQty} 件` : ''}
+          onClick={() => nav('/cart')}
+        >
+          购物车
+        </List.Item>
+        <List.Item
+          prefix={<LocationOutline />}
+          arrow={<RightOutline />}
+          onClick={() => nav('/addresses')}
+        >
+          收货地址
+        </List.Item>
+      </List>
+
+      <List className="mt-2" header="账号">
+        <List.Item
+          prefix={<UserOutline />}
+          arrow={<RightOutline />}
+          onClick={() => nav('/register-profile?returnTo=/profile')}
+        >
+          完善资料
+        </List.Item>
+      </List>
+
+      <div className="p-4">
+        <a className="block text-center text-gray-500 py-3 bg-white rounded" onClick={onLogout}>
+          退出登录
+        </a>
+      </div>
+    </div>
+  );
+}
