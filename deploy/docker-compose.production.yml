@@ -15,22 +15,9 @@
 #   - 关闭 MinIO 服务(注释掉 minio 段),减少资源占用
 
 services:
-  mongo:
-    image: mongo:7
-    container_name: mogu_mongo
-    restart: unless-stopped
-    environment:
-      TZ: Asia/Shanghai
-    volumes:
-      - mongo_data:/data/db
-    command: ["--replSet", "rs0", "--bind_ip", "127.0.0.1,mongo"]
-    healthcheck:
-      test: |
-        echo 'try { rs.status().ok } catch(e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo:27017"}]}) }' | mongosh --quiet
-      interval: 5s
-      timeout: 10s
-      retries: 10
-    networks: [mogunet]
+  # Mongo 不在 compose 内 —— 走 TencentDB for MongoDB(托管,3 节点副本集)
+  # MONGO_URL 通过 deploy/.env 注入,由 Terraform output 渲染
+  # 见 docs/iac.md「Mongo」章节
 
   minio:
     # 生产用腾讯云 COS 时可注释掉这一段
@@ -52,7 +39,7 @@ services:
     restart: unless-stopped
     environment:
       TZ: Asia/Shanghai
-      MONGO_URL: mongodb://mongo:27017/mogu_express?replicaSet=rs0
+      MONGO_URL: ${MONGO_URL}        # TencentDB 完整 URI(含 TLS + 副本集)
       S3_ENDPOINT: ${S3_ENDPOINT}
       S3_REGION: ${S3_REGION}
       S3_BUCKET: ${S3_BUCKET}
@@ -82,9 +69,6 @@ services:
       PORT: "4000"
     volumes:
       - ../cloudfunctions:/app/cloudfunctions:ro
-    depends_on:
-      mongo:
-        condition: service_healthy
     networks: [mogunet]
 
   caddy:
@@ -115,7 +99,6 @@ networks:
     driver: bridge
 
 volumes:
-  mongo_data:
   minio_data:
   caddy_data:
   caddy_config:

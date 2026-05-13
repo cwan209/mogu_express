@@ -17,6 +17,7 @@
 | 2026-05-12 | [IaC 化 — Terraform + GitHub Actions](./2026-05-12-iac-terraform.md) | 已实施 |
 | 2026-05-13 | [COS state backend + Mongo 备份](./2026-05-13-cos-backend-mongo-backup.md) | 已实施 |
 | 2026-05-13 | [腾讯云 Onboarding 指南](./2026-05-13-onboarding-doc.md) | 已实施 |
+| 2026-05-13 | [迁移到 TencentDB for MongoDB](./2026-05-13-tencentdb-mongo.md) | 已实施 |
 
 ## 写新 plan 的约定
 

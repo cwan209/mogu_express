@@ -141,14 +141,30 @@ cd web-admin && npm run dev                      # 5173
 
 `.env.development` 文件(已就位)默认 mock + localhost:4000。无需配 secret。
 
-### Mongo 备份(自动)
+### MongoDB(TencentDB 托管)
 
-VPS 上 cron 每天 03:00 跑 `scripts/backup-mongo.sh`:
-- mongodump → `cos://<bucket>/backup/<env>/YYYY-MM-DD-HHMM.gz`
+**生产 / staging**:用 **TencentDB for MongoDB**,3 节点副本集,Terraform 创建。
+- 不在 VPS docker-compose 内,API 通过公网 + TLS + 白名单(VPS public IP)访问
+- `MONGO_URL` 由 Terraform output 注入 .env(含密码 + replicaSet + ssl=true)
+- 控制台:腾讯云 → 数据库 → MongoDB,可看监控、慢日志、备份
+
+**自带备份**:
+- 每日全量 + binlog 增量,默认保留 7 天
+- 控制台一键 PITR(point-in-time recovery)恢复到任意时刻
+- 不需要再手动 mongodump(但仍保留 `scripts/backup-mongo.sh` 作冗余,见下)
+
+**本地开发**:`local-backend/docker-compose.yml` 继续跑 mongo container,零成本。
+
+### 应用层 Mongo 备份(第二层,可选)
+
+VPS 上 cron 每天 03:00 跑 `scripts/backup-mongo.sh`(可保留也可禁):
+- 检测 MONGO_URL 是 TencentDB 还是本地 docker → 用不同 dump 路径
+- 上传到 `cos://<bucket>/backup/<env>/YYYY-MM-DD-HHMM.gz`
 - COS lifecycle:30d 转低频、60d 转归档、365d 删
-- 日志:`/var/log/mongo-backup.log`
 
-详见 `docs/disaster-recovery.md`(含恢复命令、各场景流程、监控建议)。
+主备份是 TencentDB 控制台,这层兜底防"控制台备份被误清"。
+
+详见 `docs/disaster-recovery.md`。
 
 ### 灾备演练 — 重建整套环境
 

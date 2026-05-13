@@ -24,11 +24,27 @@ coscli ls cos://app/backup/prod/ | head
 
 ## 场景 1:整机崩溃 / VPS 整台挂了
 
-最简单。腾讯云控制台 → Lighthouse → 该实例 → 备份与恢复 → 选最近一次自动快照恢复。整机文件系统(含 mongo data 目录)5 分钟回来。
+腾讯云控制台 → Lighthouse → 该实例 → 备份与恢复 → 选最近一次自动快照恢复。整机文件系统 5 分钟回来。
+
+**好消息**:Mongo 已迁到 TencentDB(托管),VPS 上不存任何业务数据。VPS 挂掉只丢应用进程(几秒就能 docker compose 重新拉起),数据完全不受影响。
 
 如果连快照都丢了 → 场景 4。
 
 ## 场景 2:Mongo 数据损坏 / 删错集合
+
+**首选 — TencentDB 控制台 PITR**(point-in-time recovery,精确到秒)
+
+1. 腾讯云 → 数据库 → MongoDB → 找到该实例 → **备份与恢复**
+2. **回档** 标签 → 选恢复到具体时间点(例:删错前 5 分钟)
+3. 选**就地覆盖**(原实例)或**新建实例**(更安全)
+4. 提交,等 10-30 分钟
+5. 应用 MONGO_URL 不变(就地覆盖)/ 或改 Terraform `mongo_uri` 指向新实例
+
+**RPO**:1-5 分钟(binlog 粒度) **RTO**:10-30 分钟。
+
+---
+
+**Fallback — 我们的应用层 dump**(TencentDB 备份意外丢失时)
 
 ```bash
 # 1. SSH 上 VPS
@@ -38,15 +54,16 @@ ssh ubuntu@<vps>
 coscli ls cos://app/backup/prod/ | sort | tail -5
 
 # 3. 下载
-DUMP=2026-05-13-0300.gz   # ← 选你要恢复的
+DUMP=2026-05-13-0300.gz
 coscli cp "cos://app/backup/prod/${DUMP}" "/tmp/${DUMP}"
 
-# 4. 停应用(避免恢复期间产生新订单冲突)
+# 4. 停应用
 cd /opt/mogu_express
 sudo docker compose -f deploy/docker-compose.production.yml stop api
 
-# 5. 恢复(--drop 会清掉同名集合再灌)
-docker exec -i mogu_mongo mongorestore --archive --gzip --drop --db mogu_express < "/tmp/${DUMP}"
+# 5. 从 .env 读 MONGO_URL,直接 restore 到 TencentDB
+source /opt/mogu_express/deploy/.env
+mongorestore --uri "$MONGO_URL" --archive --gzip --drop --nsInclude='mogu_express.*' < "/tmp/${DUMP}"
 
 # 6. 重启 api
 sudo docker compose -f deploy/docker-compose.production.yml start api
@@ -55,7 +72,7 @@ sudo docker compose -f deploy/docker-compose.production.yml start api
 curl -s https://api.your-domain.com/health
 ```
 
-**耗时**:数据 <100MB 时整套 10 分钟。
+**耗时**:数据 <100MB 时整套 15 分钟。RPO 24h(每日 dump 粒度,不如 TencentDB 自带的 PITR 细)。
 
 ## 场景 3:回到某个时间点(point-in-time)
 

@@ -72,3 +72,29 @@ variable "cos_region" {
   type        = string
   default     = "ap-hongkong"
 }
+
+# ===== MongoDB(TencentDB)=====
+
+variable "mongo_memory" {
+  description = "TencentDB Mongo 内存 GB,prod 副本集起步 2,可调到 4/8/16"
+  type        = number
+  default     = 2
+}
+
+variable "mongo_volume" {
+  description = "TencentDB Mongo 磁盘 GB,起步 25"
+  type        = number
+  default     = 25
+}
+
+variable "mongo_node_num" {
+  description = "副本集节点数(3 = 经典 HA)"
+  type        = number
+  default     = 3
+}
+
+variable "mongo_availability_zone" {
+  description = "TencentDB 可用区(同 region 不同 zone)"
+  type        = string
+  default     = "ap-hongkong-2"
+}

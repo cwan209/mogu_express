@@ -14,3 +14,9 @@ ssh_public_key = "ssh-ed25519 AAAA... mogu-deploy"
 
 cos_bucket_basename = "mogu-express-images"
 cos_region          = "ap-hongkong"
+
+# TencentDB Mongo
+mongo_memory            = 2                # prod 副本集 1C2G 起,可调
+mongo_volume            = 25
+mongo_node_num          = 3                # 3 节点副本集
+mongo_availability_zone = "ap-hongkong-2"

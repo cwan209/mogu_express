@@ -46,3 +46,15 @@ module "dnspod" {
   admin_sub_domain = "admin${local.env_suffix}"
   api_sub_domain   = "api${local.env_suffix}"
 }
+
+module "mongodb" {
+  source = "./modules/mongodb"
+
+  env_name          = var.env_name
+  vps_public_ip     = module.lighthouse.public_ip
+  region            = var.region
+  availability_zone = var.mongo_availability_zone
+  memory            = var.mongo_memory
+  volume            = var.mongo_volume
+  node_num          = var.mongo_node_num
+}

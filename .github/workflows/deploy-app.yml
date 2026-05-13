@@ -136,6 +136,8 @@ jobs:
             echo "S3_PUBLIC_URL=$(jq -r .cos_public_url_prefix.value tf-outputs/outputs.json)"
             echo "S3_ACCESS_KEY=$(jq -r .cos_subuser_access_key.value tf-outputs/outputs.json)"
             echo "S3_SECRET_KEY=$(jq -r .cos_subuser_secret_key.value tf-outputs/outputs.json)"
+            # TencentDB Mongo URI(含密码 + TLS + 副本集),不开 directConnection
+            echo "MONGO_URL=$(jq -r .mongo_uri.value tf-outputs/outputs.json)"
           } >> /tmp/app.env
 
       - name: Rsync code to VPS

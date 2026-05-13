@@ -46,7 +46,11 @@ const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/mogu_expre
 const DB_NAME   = new URL(MONGO_URL).pathname.slice(1) || 'mogu_express';
 
 async function connectMongo() {
-  const client = new MongoClient(MONGO_URL, { directConnection: true });
+  // 本地单节点副本集 → directConnection=true 才能直接连容器主机
+  // 生产 TencentDB 真副本集 → 让 driver 自动 discovery,不能开 directConnection
+  // 通过 env MONGO_DIRECT_CONNECTION=1 切换
+  const isDirect = process.env.MONGO_DIRECT_CONNECTION === '1';
+  const client = new MongoClient(MONGO_URL, isDirect ? { directConnection: true } : {});
   await client.connect();
   const db = client.db(DB_NAME);
   shim.__setMongo(client, db);
