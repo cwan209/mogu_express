@@ -33,9 +33,8 @@ jobs:
       TF_VAR_root_domain:        ${{ vars.ROOT_DOMAIN }}
       TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       TF_VAR_cloudflare_zone_id:   ${{ vars.CLOUDFLARE_ZONE_ID }}
-      # staging 用小套餐
-      TF_VAR_lighthouse_bundle_id: ${{ matrix.env == 'staging' && 'bundle_excl_hk_lin_med2_01' || 'bundle_excl_hk_lin_med4_01' }}
-      TF_VAR_lighthouse_blueprint_id: lhbp-qnuz61zs
+      # staging 用小机型(2C2G),prod 用 2C4G
+      TF_VAR_cvm_instance_type: ${{ matrix.env == 'staging' && 'S5.MEDIUM2' || 'S5.MEDIUM4' }}
     steps:
       - uses: actions/checkout@v4
 

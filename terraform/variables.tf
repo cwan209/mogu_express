@@ -53,28 +53,34 @@ variable "root_domain" {
   type        = string
 }
 
-# ===== Lighthouse =====
+# ===== CVM(VPS,从 Lighthouse 切过来以便加入 mongo VPC 内网)=====
 
-variable "lighthouse_bundle_id" {
-  description = "Lighthouse 套餐 id,2C4G HK 默认 bundle_starter_lin_2c4g80g_h_intl"
+variable "cvm_instance_type" {
+  description = "CVM 机型。S5.MEDIUM2 = 2C2G(staging),S5.MEDIUM4 = 2C4G(prod)"
   type        = string
-  default     = "bundle_starter_lin_2c4g80g_h_intl"
+  default     = "S5.MEDIUM4"
 }
 
-variable "lighthouse_blueprint_id" {
-  description = "Lighthouse 镜像 id,Ubuntu 22.04 LTS HK"
-  type        = string
-  default     = "lhbp-fdtbngta"
-}
-
-variable "lighthouse_instance_name_prefix" {
-  description = "VPS 实例名前缀,实际名 = <prefix>-<env_name>"
+variable "cvm_instance_name_prefix" {
+  description = "CVM 实例名前缀,实际名 = <prefix>-<env_name>"
   type        = string
   default     = "mogu-express"
 }
 
+variable "cvm_system_disk_size" {
+  description = "系统盘大小 GB"
+  type        = number
+  default     = 50
+}
+
+variable "cvm_internet_max_bandwidth_out" {
+  description = "公网出带宽峰值 Mbps(按量计费,只计实际流量)"
+  type        = number
+  default     = 10
+}
+
 variable "ssh_public_key" {
-  description = "Lighthouse 实例 root 用 SSH 公钥(对应 GH Actions secret SSH_DEPLOY_KEY 的公钥)"
+  description = "CVM ubuntu 用户 SSH 公钥(对应 GH Actions secret SSH_DEPLOY_KEY 的公钥)"
   type        = string
 }
 

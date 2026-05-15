@@ -3,8 +3,18 @@ variable "env_name" {
   type        = string
 }
 
-variable "vps_public_ip" {
-  description = "VPS 公网 IP — 加入 mongo 安全组白名单"
+variable "vpc_id" {
+  description = "VPC ID — mongo 实例进这个 VPC"
+  type        = string
+}
+
+variable "subnet_id" {
+  description = "Subnet ID — mongo 实例进这个 subnet"
+  type        = string
+}
+
+variable "subnet_cidr" {
+  description = "Subnet CIDR — 安全组放行该 CIDR 内任意源访问 27017"
   type        = string
 }
 
@@ -39,9 +49,9 @@ variable "engine_version" {
 }
 
 variable "machine_type" {
-  description = "机型 — HMONGO 系列高 IO 副本集"
+  description = "机型 — HIO10G(10Gbps 高 IO,目前唯一非废弃选项)"
   type        = string
-  default     = "HMONGO_HMASTER"
+  default     = "HIO10G"
 }
 
 variable "node_num" {

@@ -1,6 +1,7 @@
-# 腾讯云 TencentDB for MongoDB — 副本集
+# 腾讯云 TencentDB for MongoDB — 副本集,VPC 内网
 #
-# - 走公网 + IP 白名单(Lighthouse 跟 TencentDB 不在同 VPC)
+# - 跟 CVM 同 VPC 同 subnet,内网通信(vip 是 VPC 内 IP)
+# - 安全组放行整个 subnet CIDR 的 27017 入站
 # - TLS 强制开启
 # - 主用户密码 Terraform random_password 生成,存 state(state bucket 必须私有)
 #
@@ -23,10 +24,9 @@ resource "random_password" "mongo_root" {
   override_special = "!@#$%^&*()_+-="
 }
 
-# 安全组:仅允许 VPS public IP 27017 入站
 resource "tencentcloud_security_group" "mongo" {
   name        = "mogu-mongo-${var.env_name}-${random_id.name_suffix.hex}-sg"
-  description = "Allow mongo 27017 from VPS only"
+  description = "Allow mongo 27017 from CVM subnet only"
 }
 
 resource "tencentcloud_security_group_rule_set" "mongo" {
@@ -34,30 +34,33 @@ resource "tencentcloud_security_group_rule_set" "mongo" {
 
   ingress {
     action      = "ACCEPT"
-    cidr_block  = "${var.vps_public_ip}/32"
+    cidr_block  = var.subnet_cidr
     protocol    = "TCP"
     port        = "27017"
-    description = "Allow Mongo from VPS only"
+    description = "Allow Mongo from CVM subnet"
   }
 
   egress {
-    action      = "ACCEPT"
-    cidr_block  = "0.0.0.0/0"
-    protocol    = "ALL"
-    port        = "ALL"
-    description = "Allow all outbound"
+    action     = "ACCEPT"
+    cidr_block = "0.0.0.0/0"
+    protocol   = "ALL"
+    port       = "ALL"
   }
 }
 
 # 主资源
 resource "tencentcloud_mongodb_instance" "main" {
-  instance_name   = "mogu-mongo-${var.env_name}-${random_id.name_suffix.hex}"
-  memory          = var.memory
-  volume          = var.volume
-  engine_version  = var.engine_version
-  machine_type    = var.machine_type
-  node_num        = var.node_num
-  available_zone  = var.availability_zone
+  instance_name  = "mogu-mongo-${var.env_name}-${random_id.name_suffix.hex}"
+  memory         = var.memory
+  volume         = var.volume
+  engine_version = var.engine_version
+  machine_type   = var.machine_type
+  node_num       = var.node_num
+  available_zone = var.availability_zone
+
+  vpc_id    = var.vpc_id
+  subnet_id = var.subnet_id
+
   project_id  = 0
   password    = random_password.mongo_root.result
   charge_type = "POSTPAID_BY_HOUR" # 按量计费;改 PREPAID 时记得加回 prepaid_period + auto_renew_flag
@@ -70,7 +73,6 @@ resource "tencentcloud_mongodb_instance" "main" {
   }
 
   lifecycle {
-    # 防止重启 / 升级触发实例重建
     ignore_changes = [
       charge_type,
     ]

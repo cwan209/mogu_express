@@ -19,19 +19,32 @@ locals {
     admin = "admin${local.env_suffix}.${var.root_domain}"
     api   = "api${local.env_suffix}.${var.root_domain}"
   }
-  instance_name = "${var.lighthouse_instance_name_prefix}-${var.env_name}"
+  cvm_instance_name = "${var.cvm_instance_name_prefix}-${var.env_name}"
 }
 
 # ===== Modules =====
 
-module "lighthouse" {
-  source = "./modules/lighthouse"
+# VPC + subnet — CVM 和 Mongo 共用,内网通信
+module "network" {
+  source = "./modules/network"
 
-  instance_name  = local.instance_name
-  bundle_id      = var.lighthouse_bundle_id
-  blueprint_id   = var.lighthouse_blueprint_id
-  region         = var.region
-  ssh_public_key = var.ssh_public_key
+  env_name          = var.env_name
+  availability_zone = var.mongo_availability_zone
+}
+
+module "cvm" {
+  source = "./modules/cvm"
+
+  instance_name              = local.cvm_instance_name
+  env_name                   = var.env_name
+  availability_zone          = var.mongo_availability_zone # CVM 跟 Mongo 同 AZ 确保 subnet 匹配
+  instance_type              = var.cvm_instance_type
+  system_disk_size           = var.cvm_system_disk_size
+  internet_max_bandwidth_out = var.cvm_internet_max_bandwidth_out
+  ssh_public_key             = var.ssh_public_key
+
+  vpc_id    = module.network.vpc_id
+  subnet_id = module.network.subnet_id
 }
 
 module "cos" {
@@ -46,7 +59,7 @@ module "cloudflare_dns" {
 
   zone_id          = var.cloudflare_zone_id
   root_domain      = var.root_domain
-  vps_ip           = module.lighthouse.public_ip
+  vps_ip           = module.cvm.public_ip
   shop_sub_domain  = "shop${local.env_suffix}"
   admin_sub_domain = "admin${local.env_suffix}"
   api_sub_domain   = "api${local.env_suffix}"
@@ -56,10 +69,13 @@ module "mongodb" {
   source = "./modules/mongodb"
 
   env_name          = var.env_name
-  vps_public_ip     = module.lighthouse.public_ip
   region            = var.region
   availability_zone = var.mongo_availability_zone
   memory            = var.mongo_memory
   volume            = var.mongo_volume
   node_num          = var.mongo_node_num
+
+  vpc_id      = module.network.vpc_id
+  subnet_id   = module.network.subnet_id
+  subnet_cidr = module.network.subnet_cidr
 }

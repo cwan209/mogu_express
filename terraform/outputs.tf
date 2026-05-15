@@ -3,12 +3,21 @@ output "env_name" {
 }
 
 output "vps_public_ip" {
-  description = "VPS 公网 IP,用于 SSH 部署"
-  value       = module.lighthouse.public_ip
+  description = "CVM 公网 IP,用于 SSH 部署"
+  value       = module.cvm.public_ip
+}
+
+output "vps_private_ip" {
+  description = "CVM 内网 IP(VPC 内,与 Mongo 通信用)"
+  value       = module.cvm.private_ip
 }
 
 output "vps_instance_id" {
-  value = module.lighthouse.instance_id
+  value = module.cvm.instance_id
+}
+
+output "vpc_id" {
+  value = module.network.vpc_id
 }
 
 output "fqdns" {
