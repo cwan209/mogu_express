@@ -19,8 +19,8 @@ ssh_public_key = "ssh-ed25519 AAAA... mogu-deploy"
 cos_bucket_basename = "mogu-express-images"
 cos_region          = "ap-hongkong"
 
-# TencentDB Mongo
-mongo_memory            = 2                # staging 也 3 节点保持架构一致;省钱可调成 1 (单点版需要换 machine_type,先保持一致)
-mongo_volume            = 25
+# TencentDB Mongo — HK REPLSET 最小档:2C4G / 100GB / 3 节点
+mongo_memory            = 4
+mongo_volume            = 100
 mongo_node_num          = 3
 mongo_availability_zone = "ap-hongkong-2"

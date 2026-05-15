@@ -101,15 +101,15 @@ variable "cos_region" {
 # ===== MongoDB(TencentDB)=====
 
 variable "mongo_memory" {
-  description = "TencentDB Mongo 内存 GB,prod 副本集起步 2,可调到 4/8/16"
+  description = "TencentDB Mongo 内存 GB。HK REPLSET 最小档 4(2GB 在 HK 不卖),可调 8/16"
   type        = number
-  default     = 2
+  default     = 4
 }
 
 variable "mongo_volume" {
-  description = "TencentDB Mongo 磁盘 GB,起步 25"
+  description = "TencentDB Mongo 磁盘 GB。HK REPLSET 最小 100GB"
   type        = number
-  default     = 25
+  default     = 100
 }
 
 variable "mongo_node_num" {
