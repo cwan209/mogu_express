@@ -58,11 +58,9 @@ resource "tencentcloud_mongodb_instance" "main" {
   machine_type    = var.machine_type
   node_num        = var.node_num
   available_zone  = var.availability_zone
-  project_id      = 0
-  password        = random_password.mongo_root.result
-  charge_type     = "POSTPAID_BY_HOUR" # 按量计费,需要时启停灵活;包年包月可改 PREPAID
-  prepaid_period  = 1
-  auto_renew_flag = 0
+  project_id  = 0
+  password    = random_password.mongo_root.result
+  charge_type = "POSTPAID_BY_HOUR" # 按量计费;改 PREPAID 时记得加回 prepaid_period + auto_renew_flag
 
   security_groups = [tencentcloud_security_group.mongo.id]
 
@@ -75,7 +73,6 @@ resource "tencentcloud_mongodb_instance" "main" {
     # 防止重启 / 升级触发实例重建
     ignore_changes = [
       charge_type,
-      prepaid_period,
     ]
   }
 }

@@ -4,8 +4,10 @@
 # 用 lifecycle.ignore_changes 防止误操作。
 
 # SSH 密钥(Lighthouse 专用,跟 CVM 的 tencentcloud_key_pair 是不同资源)
+# 注:Lighthouse key_name 上限 25 字符,只允许数字/字母/下划线;
+# instance_name 形如 "mogu-express-staging"(20) → replace dash → "mogu_express_staging" 正好 20
 resource "tencentcloud_lighthouse_key_pair" "deploy" {
-  key_name   = replace("${var.instance_name}_deploy", "-", "_") # key_name 只允许数字/字母/下划线
+  key_name   = replace(var.instance_name, "-", "_")
   public_key = var.ssh_public_key
 }
 
