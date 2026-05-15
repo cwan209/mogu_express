@@ -2,8 +2,9 @@ provider "tencentcloud" {
   secret_id  = var.tencent_secret_id
   secret_key = var.tencent_secret_key
   region     = var.region
-  # 腾讯云国际版 API endpoint(国内版账号留空)
-  domain = var.tencent_intl ? "intlapi.tencentcloudapi.com" : ""
+  # 国际版账号路由到 intl 子域,SDK 会拼成 <service>.intl.tencentcloudapi.com;
+  # 国内版账号留空走默认 tencentcloudapi.com
+  domain = var.tencent_intl ? "intl.tencentcloudapi.com" : ""
 }
 
 provider "cloudflare" {
