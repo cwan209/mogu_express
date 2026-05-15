@@ -10,9 +10,9 @@ tencent_intl  = true                  # 腾讯云国际版账号
 cloudflare_zone_id = "83d7ed862c332ac3b8b23b5b2b0507cc"
 # cloudflare_api_token 走 env TF_VAR_cloudflare_api_token,不写进 tfvars
 
-# 2C4G HK 套餐(prod 用大点的)
-lighthouse_bundle_id    = "bundle_starter_lin_2c4g80g_h_intl"
-lighthouse_blueprint_id = "lhbp-fdtbngta"   # Ubuntu 22.04 LTS HK
+# HK_EXCLUSIVE 2C4G / 70GB SSD(prod)
+lighthouse_bundle_id    = "bundle_excl_hk_lin_med4_01"
+lighthouse_blueprint_id = "lhbp-qnuz61zs"   # Ubuntu Server 22.04 LTS
 
 # SSH 公钥(对应 GH secret SSH_DEPLOY_KEY 的私钥)
 ssh_public_key = "ssh-ed25519 AAAA... mogu-deploy"

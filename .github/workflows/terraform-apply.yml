@@ -46,7 +46,8 @@ jobs:
       TF_VAR_root_domain:        ${{ vars.ROOT_DOMAIN }}
       TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       TF_VAR_cloudflare_zone_id:   ${{ vars.CLOUDFLARE_ZONE_ID }}
-      TF_VAR_lighthouse_bundle_id: bundle_starter_lin_1c2g80g_h_intl
+      TF_VAR_lighthouse_bundle_id: bundle_excl_hk_lin_med2_01
+      TF_VAR_lighthouse_blueprint_id: lhbp-qnuz61zs
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
@@ -82,7 +83,8 @@ jobs:
       TF_VAR_root_domain:        ${{ vars.ROOT_DOMAIN }}
       TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       TF_VAR_cloudflare_zone_id:   ${{ vars.CLOUDFLARE_ZONE_ID }}
-      TF_VAR_lighthouse_bundle_id: bundle_starter_lin_2c4g80g_h_intl
+      TF_VAR_lighthouse_bundle_id: bundle_excl_hk_lin_med4_01
+      TF_VAR_lighthouse_blueprint_id: lhbp-qnuz61zs
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
