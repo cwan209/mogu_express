@@ -13,7 +13,7 @@ output "vps_instance_id" {
 
 output "fqdns" {
   description = "完整域名"
-  value       = local.fqdns
+  value       = module.cloudflare_dns.fqdns
 }
 
 output "cos_bucket" {

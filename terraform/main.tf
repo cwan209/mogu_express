@@ -2,6 +2,12 @@ provider "tencentcloud" {
   secret_id  = var.tencent_secret_id
   secret_key = var.tencent_secret_key
   region     = var.region
+  # 腾讯云国际版 API endpoint(国内版账号留空)
+  domain = var.tencent_intl ? "intlapi.tencentcloudapi.com" : ""
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
 }
 
 # 域名前缀:prod = "shop"、staging = "shop-staging"
@@ -37,9 +43,10 @@ module "cos" {
   region          = var.cos_region
 }
 
-module "dnspod" {
-  source = "./modules/dnspod"
+module "cloudflare_dns" {
+  source = "./modules/cloudflare_dns"
 
+  zone_id          = var.cloudflare_zone_id
   root_domain      = var.root_domain
   vps_ip           = module.lighthouse.public_ip
   shop_sub_domain  = "shop${local.env_suffix}"

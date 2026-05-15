@@ -21,6 +21,25 @@ variable "tencent_secret_key" {
   sensitive   = true
 }
 
+variable "tencent_intl" {
+  description = "是否腾讯云国际版账号(intl.cloud.tencent.com)。海外主体走这个"
+  type        = bool
+  default     = true
+}
+
+# ===== Cloudflare DNS =====
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token(Zone DNS Edit 权限即可)"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID(域名 overview 页面右下角)"
+  type        = string
+}
+
 # ===== 区域 / 域名 =====
 
 variable "region" {

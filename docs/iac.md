@@ -23,12 +23,15 @@
 |---|---|---|
 | 腾讯云账号 | SecretId / SecretKey(访问管理 → API 密钥) | Terraform 调腾讯云 API + COS state |
 | GitHub repo | 仓库管理员权限 | 配置 secrets |
-| 域名注册商 | 任一已实名的域名 | DNSPod 接管 |
+| 域名注册商 | Cloudflare(推荐) / 任一注册商 + NS 切 Cloudflare | DNS 解析 |
+| Cloudflare API token | DNS Edit 权限(仅限你的 zone) | Terraform 改 DNS 记录 |
 
 > State 后端用**腾讯云 COS**(不再依赖 Terraform Cloud),减少外部账号。
 
-**域名接入 DNSPod**:
-- 腾讯云控制台 → DNSPod → 添加域名
+**域名 DNS 由 Cloudflare 管**(海外主体 + 国际版账号路径下,DNSPod 国内解析不直接对接):
+- 在 Cloudflare 买域名(或第三方买后 NS 切 Cloudflare)
+- 进域名 overview 拿 zone_id(32 位 hex,右下角)
+- API token: Edit zone DNS,限定该 zone
 - 把域名注册商处的 nameserver 改成 `f1g1ns1.dnspod.net` 和 `f1g1ns2.dnspod.net`
 - 等 1-24 小时生效
 
@@ -66,6 +69,7 @@ cat ~/.ssh/mogu_deploy       # 私钥 → GitHub repo secret SSH_DEPLOY_KEY
 **Repository secrets:**
 - `TENCENTCLOUD_SECRET_ID` — 腾讯云 AK(同时给 TF provider + COS state backend 用)
 - `TENCENTCLOUD_SECRET_KEY` — 腾讯云 SK
+- `CLOUDFLARE_API_TOKEN` — Cloudflare API token(DNS Edit 权限,限定该 zone)
 - `SSH_DEPLOY_KEY` — SSH 私钥内容(`cat ~/.ssh/mogu_deploy`)
 - `SSH_DEPLOY_PUBLIC_KEY` — SSH 公钥(用作 TF_VAR_ssh_public_key)
 - `APP_ENV_PROD` — Prod `.env` 文件 `base64 -w0 deploy/.env` 后的内容
@@ -75,6 +79,7 @@ cat ~/.ssh/mogu_deploy       # 私钥 → GitHub repo secret SSH_DEPLOY_KEY
 
 **Repository variables:**
 - `ROOT_DOMAIN` — 你的根域名,如 `mogu-express.com`
+- `CLOUDFLARE_ZONE_ID` — Cloudflare zone ID(32 位 hex,域名 overview 右下角)
 
 ### 5. 首次 apply(本地走一次)
 
@@ -195,7 +200,7 @@ docker exec -i mogu_mongo mongorestore --archive=/backup/mongo.gz --gzip
 | `terraform init` 报 COS bucket 不存在 | 是否手动建了 state bucket?backend.tf 里 bucket 字段是否填正确(含 `-<appid>` 后缀)|
 | Lighthouse 实例 force replace | 改了 `bundle_id` 或 `blueprint_id` 触发。生产期不要改套餐;要升级请走腾讯云控制台 + `terraform import` |
 | COS bucket 创建失败 (`BucketAlreadyExists`) | 全局重名;改 `cos_bucket_basename` 或重 apply 让 random_id 重新生成后缀 |
-| DNSPod 记录 apply 报域名未授权 | 域名 nameserver 还没切到 DNSPod;等 24h 重试 |
+| Cloudflare apply 报 403 | API token 是否含 Zone:DNS:Edit?Zone 是否限定到了正确域名 |
 | Caddy SSL 证书签不下来 | 域名 A 记录是否真指向 VPS?80/443 端口是否开?`docker logs mogu_caddy` 看 LE 错 |
 | deploy-app workflow 找不到 artifact | terraform-apply 还没跑过一次。先手动触发 workflow_dispatch |
 | SSH 鉴权失败 | `SSH_DEPLOY_KEY` 是否是**私钥**全文(含 `-----BEGIN OPENSSH PRIVATE KEY-----`)?`SSH_DEPLOY_PUBLIC_KEY` 是否一致 |

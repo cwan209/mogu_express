@@ -31,6 +31,8 @@ jobs:
       TF_VAR_tencent_secret_key: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
       TF_VAR_ssh_public_key:     ${{ secrets.SSH_DEPLOY_PUBLIC_KEY }}
       TF_VAR_root_domain:        ${{ vars.ROOT_DOMAIN }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_zone_id:   ${{ vars.CLOUDFLARE_ZONE_ID }}
       # staging 用小套餐
       TF_VAR_lighthouse_bundle_id: ${{ matrix.env == 'staging' && 'bundle_starter_lin_1c2g80g_h_intl' || 'bundle_starter_lin_2c4g80g_h_intl' }}
     steps:

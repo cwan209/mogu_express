@@ -1,5 +1,10 @@
+variable "zone_id" {
+  description = "Cloudflare zone ID(在域名 overview 页面右下角找)"
+  type        = string
+}
+
 variable "root_domain" {
-  description = "根域名(已在 DNSPod 接入)"
+  description = "根域名,如 mogu-express.com(zone_id 对应的域名)"
   type        = string
 }
 
@@ -8,8 +13,7 @@ variable "vps_ip" {
   type        = string
 }
 
-# Staging 用 shop-staging / admin-staging / api-staging
-# Prod 用 shop / admin / api
+# 三个子域 prefix(staging 时 shop-staging 等)
 variable "shop_sub_domain" { type = string }
 variable "admin_sub_domain" { type = string }
 variable "api_sub_domain" { type = string }
