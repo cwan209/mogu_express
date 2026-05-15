@@ -136,8 +136,8 @@ jobs:
             echo "S3_PUBLIC_URL=$(jq -r .cos_public_url_prefix.value tf-outputs/outputs.json)"
             echo "S3_ACCESS_KEY=$(jq -r .cos_subuser_access_key.value tf-outputs/outputs.json)"
             echo "S3_SECRET_KEY=$(jq -r .cos_subuser_secret_key.value tf-outputs/outputs.json)"
-            # TencentDB Mongo URI(含密码 + TLS + 副本集),不开 directConnection
-            echo "MONGO_URL=$(jq -r .mongo_uri.value tf-outputs/outputs.json)"
+            # Mongo URL 由 docker-compose 内部用 MONGO_ROOT_USER/PASSWORD 拼,
+            # 这两个值在 APP_ENV_* secret 里
           } >> /tmp/app.env
 
       - name: Rsync code to VPS
@@ -153,15 +153,15 @@ jobs:
         run: |
           scp /tmp/app.env ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }}:${{ env.DEPLOY_PATH }}/deploy/.env
 
+      - name: Server bootstrap (docker + 挂载数据盘,幂等)
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }} 'sudo bash -s' < scripts/server-init.sh
+
       - name: Docker compose up
         run: |
           ssh ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }} bash <<'EOF'
             set -e
             cd /opt/mogu_express
-            if ! command -v docker >/dev/null; then
-              curl -fsSL https://get.docker.com | sudo sh
-              sudo usermod -aG docker $USER
-            fi
             sudo docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build
             sudo docker compose -f deploy/docker-compose.production.yml ps
           EOF
