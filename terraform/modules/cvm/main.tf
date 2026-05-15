@@ -88,8 +88,8 @@ resource "tencentcloud_instance" "main" {
   hostname = replace(var.instance_name, "_", "-")
 
   tags = {
-    project = "mogu-express"
-    env     = var.env_name
+    app      = "mogu-express"
+    mogu_env = var.env_name
   }
 
   lifecycle {

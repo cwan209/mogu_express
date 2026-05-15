@@ -68,8 +68,8 @@ resource "tencentcloud_mongodb_instance" "main" {
   security_groups = [tencentcloud_security_group.mongo.id]
 
   tags = {
-    project = "mogu-express"
-    env     = var.env_name
+    app      = "mogu-express"
+    mogu_env = var.env_name
   }
 
   lifecycle {

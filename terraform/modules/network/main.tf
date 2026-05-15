@@ -10,8 +10,8 @@ resource "tencentcloud_vpc" "main" {
   cidr_block = var.vpc_cidr
 
   tags = {
-    project = "mogu-express"
-    env     = var.env_name
+    app      = "mogu-express"
+    mogu_env = var.env_name
   }
 }
 
@@ -22,7 +22,7 @@ resource "tencentcloud_subnet" "main" {
   availability_zone = var.availability_zone
 
   tags = {
-    project = "mogu-express"
-    env     = var.env_name
+    app      = "mogu-express"
+    mogu_env = var.env_name
   }
 }
