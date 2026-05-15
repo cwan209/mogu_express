@@ -140,6 +140,11 @@ jobs:
             # 这两个值在 APP_ENV_* secret 里
           } >> /tmp/app.env
 
+      - name: Server bootstrap (docker + 挂载数据盘 + 建 /opt/mogu_express,幂等)
+        # 必须在 rsync 之前 —— rsync 目标 /opt/mogu_express 由 server-init.sh 创建并 chown 给 ubuntu
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }} 'sudo bash -s' < scripts/server-init.sh
+
       - name: Rsync code to VPS
         run: |
           rsync -avz --delete \
@@ -152,10 +157,6 @@ jobs:
       - name: Push .env
         run: |
           scp /tmp/app.env ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }}:${{ env.DEPLOY_PATH }}/deploy/.env
-
-      - name: Server bootstrap (docker + 挂载数据盘,幂等)
-        run: |
-          ssh ${{ env.VPS_USER }}@${{ steps.vps.outputs.ip }} 'sudo bash -s' < scripts/server-init.sh
 
       - name: Docker compose up
         run: |
