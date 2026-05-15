@@ -2,12 +2,12 @@
 # Workspace: mogu-staging (Terraform Cloud)
 
 env_name      = "staging"
-root_domain   = "mogu-express.com"   # 跟 prod 同一根域,只是子域加 -staging
+root_domain   = "moguexpress.com"    # 跟 prod 同一根域,只是子域加 -staging
 region        = "ap-hongkong"
 tencent_intl  = true                  # 腾讯云国际版账号
 
 # Cloudflare(zone_id 在 dashboard 域名 overview 页右下角)
-cloudflare_zone_id = "REPLACE_WITH_ZONE_ID"
+cloudflare_zone_id = "83d7ed862c332ac3b8b23b5b2b0507cc"
 # cloudflare_api_token 走 env TF_VAR_cloudflare_api_token,不写进 tfvars
 
 # 1C2G HK 套餐(staging 用小点的省钱,大约 ¥18/月)

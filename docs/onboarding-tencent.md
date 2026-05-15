@@ -55,10 +55,12 @@
 ## 步骤 1 — Cloudflare 注册 + 买域名 + 拿 zone_id(~10 分钟)
 
 1. https://cloudflare.com 注册账号
-2. https://dash.cloudflare.com → Registrar(域名注册) → 搜你想要的域名,如 `mogu-express.com`
+2. https://dash.cloudflare.com → Registrar(域名注册) → 搜你想要的域名,如 `moguexpress.com`
 3. ~$10/年,Visa 卡付款
 4. 买完后域名自动接入 Cloudflare DNS(无需改 NS)
 5. **拿 zone_id**:进域名 overview 页 → 右下角 `Zone ID` 一栏,复制(32 位 hex)
+
+> ✅ **已完成** — 根域名 `moguexpress.com`,zone_id `83d7ed862c332ac3b8b23b5b2b0507cc`
 
 记下:**根域名** + **zone_id**。
 
@@ -85,6 +87,8 @@ Terraform 需要一个 token 来创建 DNS 记录。
    - 法人姓名 / 邮箱 / 电话
    - 审核 1-3 个工作日(可能要补充材料)
 3. 实名通过后,**Billing → Top up** Visa 卡充值 $50(staging 跑通最少)
+
+> ✅ **已完成** — APPID `200048853243`
 
 记下:**APPID**(账号信息页右上角 10 位数字)。
 
@@ -156,8 +160,8 @@ GitHub 仓库 → Settings → Secrets and variables → Actions:
 
 | 名字 | 值 |
 |---|---|
-| `ROOT_DOMAIN` | 步骤 1 域名 |
-| `CLOUDFLARE_ZONE_ID` | 步骤 1 zone_id |
+| `ROOT_DOMAIN` | `moguexpress.com` |
+| `CLOUDFLARE_ZONE_ID` | `83d7ed862c332ac3b8b23b5b2b0507cc` |
 
 ---
 
@@ -169,7 +173,7 @@ GitHub 仓库 → Settings → Secrets and variables → Actions:
 terraform {
   backend "cos" {
     region  = "ap-hongkong"
-    bucket  = "mogu-tfstate-x7k2pq-1300123456"   # ← 替换!
+    bucket  = "mogu-tfstate-x7k2pq-200048853243"   # ← 把 x7k2pq 换成你建桶时起的后缀!
     prefix  = "terraform/state"
     encrypt = true
   }
@@ -222,11 +226,11 @@ terraform output
 ```
 vps_public_ip      = "43.xxx.xxx.xxx"
 fqdns = {
-  shop  = "shop-staging.mogu-express.com"
-  admin = "admin-staging.mogu-express.com"
-  api   = "api-staging.mogu-express.com"
+  shop  = "shop-staging.moguexpress.com"
+  admin = "admin-staging.moguexpress.com"
+  api   = "api-staging.moguexpress.com"
 }
-cos_bucket         = "mogu-express-images-staging-xxx-1300123456"
+cos_bucket         = "mogu-express-images-staging-xxx-200048853243"
 mongo_instance_id  = "cmgo-xxxxxxxx"
 ```
 

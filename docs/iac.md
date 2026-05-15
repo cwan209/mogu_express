@@ -78,8 +78,8 @@ cat ~/.ssh/mogu_deploy       # 私钥 → GitHub repo secret SSH_DEPLOY_KEY
 > 不再需要 `TF_API_TOKEN`。State 后端走 COS,鉴权复用腾讯云凭证。
 
 **Repository variables:**
-- `ROOT_DOMAIN` — 你的根域名,如 `mogu-express.com`
-- `CLOUDFLARE_ZONE_ID` — Cloudflare zone ID(32 位 hex,域名 overview 右下角)
+- `ROOT_DOMAIN` — `moguexpress.com`
+- `CLOUDFLARE_ZONE_ID` — `83d7ed862c332ac3b8b23b5b2b0507cc`
 
 ### 5. 首次 apply(本地走一次)
 

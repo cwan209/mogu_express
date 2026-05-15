@@ -18,7 +18,7 @@
 terraform {
   backend "cos" {
     region  = "ap-hongkong"
-    bucket  = "mogu-tfstate-CHANGEME-1300000000" # ← 替换成你实际创建的 bucket 完整名
+    bucket  = "mogu-tfstate-CHANGEME-200048853243" # ← 把 CHANGEME 替换成你选的随机后缀(6 位即可)
     prefix  = "terraform/state"
     encrypt = true
   }
