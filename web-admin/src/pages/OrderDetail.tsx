@@ -8,6 +8,7 @@ import { formatAud } from '../utils/money';
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pending_pay: 'orange',
   paid: 'green',
+  refund_requested: 'gold',
   shipped: 'blue',
   completed: 'default',
   cancelled: 'default',
@@ -17,6 +18,7 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 const STATUS_LABEL: Record<OrderStatus, string> = {
   pending_pay: '待支付',
   paid: '已支付',
+  refund_requested: '退款申请中',
   shipped: '已发货',
   completed: '已完成',
   cancelled: '已取消',
