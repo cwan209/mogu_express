@@ -29,14 +29,24 @@ resource "tencentcloud_security_group" "mongo" {
   description = "Allow mongo 27017 from VPS only"
 }
 
-resource "tencentcloud_security_group_lite_rule" "mongo_ingress" {
+resource "tencentcloud_security_group_rule_set" "mongo" {
   security_group_id = tencentcloud_security_group.mongo.id
-  ingress = [
-    "ACCEPT#${var.vps_public_ip}/32#27017#TCP",
-  ]
-  egress = [
-    "ACCEPT#0.0.0.0/0#ALL#ALL",
-  ]
+
+  ingress {
+    action      = "ACCEPT"
+    cidr_block  = "${var.vps_public_ip}/32"
+    protocol    = "TCP"
+    port        = "27017"
+    description = "Allow Mongo from VPS only"
+  }
+
+  egress {
+    action      = "ACCEPT"
+    cidr_block  = "0.0.0.0/0"
+    protocol    = "ALL"
+    port        = "ALL"
+    description = "Allow all outbound"
+  }
 }
 
 # 主资源

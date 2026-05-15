@@ -7,5 +7,5 @@ output "public_ip" {
 }
 
 output "ssh_key_name" {
-  value = tencentcloud_key_pair.deploy.key_name
+  value = tencentcloud_lighthouse_key_pair.deploy.key_name
 }

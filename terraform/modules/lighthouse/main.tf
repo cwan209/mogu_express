@@ -3,9 +3,9 @@
 # Lighthouse 在 Terraform provider 里参数比 CVM 少。套餐 bundle_id 一旦改会强制重建,
 # 用 lifecycle.ignore_changes 防止误操作。
 
-# SSH 密钥(导入用户提供的公钥)
-resource "tencentcloud_key_pair" "deploy" {
-  key_name   = "${var.instance_name}-deploy"
+# SSH 密钥(Lighthouse 专用,跟 CVM 的 tencentcloud_key_pair 是不同资源)
+resource "tencentcloud_lighthouse_key_pair" "deploy" {
+  key_name   = replace("${var.instance_name}_deploy", "-", "_") # key_name 只允许数字/字母/下划线
   public_key = var.ssh_public_key
 }
 
@@ -43,16 +43,6 @@ resource "tencentcloud_lighthouse_firewall_template" "main" {
   }
 }
 
-# cloud-init 文件渲染
-locals {
-  user_data = templatefile("${path.module}/cloud-init.yaml.tpl", {
-    git_repo     = var.git_repo
-    shop_domain  = var.shop_domain
-    admin_domain = var.admin_domain
-    api_domain   = var.api_domain
-  })
-}
-
 resource "tencentcloud_lighthouse_instance" "main" {
   instance_name = var.instance_name
   bundle_id     = var.bundle_id
@@ -60,22 +50,8 @@ resource "tencentcloud_lighthouse_instance" "main" {
   period        = 1
   renew_flag    = "NOTIFY_AND_AUTO_RENEW"
 
-  login_configuration {
-    auto_generate_password = "NO"
-    key_ids                = [tencentcloud_key_pair.deploy.id]
-  }
-
-  containers {
-    container_name  = "mogu-init"
-    container_image = "alpine:3.19"
-    command         = "sh"
-    publish_ports {
-      host_port      = 0
-      container_port = 0
-      ip             = "0.0.0.0"
-      protocol       = "tcp"
-    }
-  }
+  # 直接绑防火墙模板,不用单独的 _apply 资源(provider 已废弃)
+  firewall_template_id = tencentcloud_lighthouse_firewall_template.main.id
 
   # 套餐升降级会 force replace,生产期实例 ID 必须稳定 → 锁定不改
   lifecycle {
@@ -87,17 +63,11 @@ resource "tencentcloud_lighthouse_instance" "main" {
   }
 }
 
-# 绑定防火墙模板到实例
-resource "tencentcloud_lighthouse_firewall_template_apply" "main" {
-  template_id = tencentcloud_lighthouse_firewall_template.main.id
-  apply_lighthouse {
-    instance_id = tencentcloud_lighthouse_instance.main.id
-  }
+# 把 SSH key 绑到实例(Lighthouse 专用 attachment 资源)
+resource "tencentcloud_lighthouse_key_pair_attachment" "deploy" {
+  instance_id = tencentcloud_lighthouse_instance.main.id
+  key_id      = tencentcloud_lighthouse_key_pair.deploy.id
 }
 
-# 把 user_data 通过 cloudbase 自定义脚本注入(Lighthouse 暂不直接支持 user_data,
-# 这里改用首次 SSH provisioner;production 推荐方案是手动跑或用 Ansible)
-#
-# 注:Lighthouse provider 截至 1.81 还不支持 user_data 字段。
-# 实际生产中,cloud-init 改为通过 GH Actions deploy-app.yml 首次执行 init 脚本。
-# 这里保留 cloud-init.yaml.tpl 文件作为 reference,GHA workflow 会 scp + bash 执行。
+# 注:cloud-init.yaml.tpl 暂未用 — Lighthouse provider 不支持 user_data,
+# 首次环境初始化(Docker、Caddy 等)走 GH Actions deploy-app.yml workflow。

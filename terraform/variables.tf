@@ -68,7 +68,7 @@ variable "lighthouse_blueprint_id" {
 }
 
 variable "lighthouse_instance_name_prefix" {
-  description = "VPS 实例名前缀,实际名 = ${prefix}-${env_name}"
+  description = "VPS 实例名前缀,实际名 = <prefix>-<env_name>"
   type        = string
   default     = "mogu-express"
 }

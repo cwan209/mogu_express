@@ -17,11 +17,11 @@ output "public_url_prefix" {
 }
 
 output "access_key" {
-  value     = tencentcloud_cam_user_access_key.cos_writer.access_key
+  value     = tencentcloud_cam_access_key.cos_writer.id
   sensitive = true
 }
 
 output "secret_key" {
-  value     = tencentcloud_cam_user_access_key.cos_writer.secret_key
+  value     = tencentcloud_cam_access_key.cos_writer.secret_access_key
   sensitive = true
 }

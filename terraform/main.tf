@@ -31,9 +31,6 @@ module "lighthouse" {
   blueprint_id   = var.lighthouse_blueprint_id
   region         = var.region
   ssh_public_key = var.ssh_public_key
-  shop_domain    = local.fqdns.shop
-  admin_domain   = local.fqdns.admin
-  api_domain     = local.fqdns.api
 }
 
 module "cos" {

@@ -53,11 +53,10 @@ resource "tencentcloud_cos_bucket" "images" {
 
 # 子账号(仅有该 bucket 的 PutObject/GetObject/DeleteObject 权限)
 resource "tencentcloud_cam_user" "cos_writer" {
-  name                = "${var.bucket_basename}-writer"
-  remark              = "Service account for mogu-express to upload images"
-  console_login       = false
-  use_api             = true
-  need_password_reset = false
+  name          = "${var.bucket_basename}-writer"
+  remark        = "Service account for mogu-express to upload images"
+  console_login = false
+  use_api       = true
 }
 
 # 自定义策略 — 仅限本 bucket
@@ -92,7 +91,7 @@ resource "tencentcloud_cam_user_policy_attachment" "cos_writer" {
 }
 
 # 生成 AK/SK
-resource "tencentcloud_cam_user_access_key" "cos_writer" {
+resource "tencentcloud_cam_access_key" "cos_writer" {
   target_uin = tencentcloud_cam_user.cos_writer.uin
   status     = "Active"
 }
