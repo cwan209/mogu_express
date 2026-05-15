@@ -75,6 +75,8 @@ Terraform 需要一个 token 来创建 DNS 记录。
 3. **Zone Resources** → Include → Specific zone → 选你刚买的域名(限定权限,不让 token 改其他 zone)
 4. Create → **复制 token**(只显示一次!)
 
+> ✅ **已完成** — token 已生成,稍后填进 GitHub Secret `CLOUDFLARE_API_TOKEN`
+
 记下:**Cloudflare API Token**。
 
 ---
@@ -88,7 +90,7 @@ Terraform 需要一个 token 来创建 DNS 记录。
    - 审核 1-3 个工作日(可能要补充材料)
 3. 实名通过后,**Billing → Top up** Visa 卡充值 $50(staging 跑通最少)
 
-> ✅ **已完成** — APPID `200048853243`
+> ✅ **已完成** — APPID `1432854412`
 
 记下:**APPID**(账号信息页右上角 10 位数字)。
 
@@ -106,6 +108,8 @@ Terraform 需要一个 token 来创建 DNS 记录。
 4. **下载 CSV** 含 SecretId/SecretKey(只显示一次!)
 5. 存到 1Password / Bitwarden
 
+> ✅ **已完成** — `terraform-deployer` 子账号已建,AK/SK 待填进 GitHub Secrets `TENCENTCLOUD_SECRET_ID/KEY`
+
 > 这是 Terraform 用的。**应用读写 COS 的子账号 `cos_writer` 由 Terraform 自己创建**,不用再手动建。
 
 ---
@@ -121,6 +125,8 @@ Terraform 需要一个 token 来创建 DNS 记录。
    - **Access Permission**: **Private Read/Write**(state 含敏感数据,必须私有!)
 3. 进 bucket → **Basic Configuration** → **Versioning** → Enable(防 state 损坏可回滚)
 4. 复制**完整 bucket 名**(含 `-<APPID>` 后缀)
+
+> ✅ **已完成** — bucket `mogu-tfstate-x7k2pq-1432854412`(已写进 `terraform/backend.tf`)
 
 记下:**完整 bucket 名**。
 
@@ -173,7 +179,7 @@ GitHub 仓库 → Settings → Secrets and variables → Actions:
 terraform {
   backend "cos" {
     region  = "ap-hongkong"
-    bucket  = "mogu-tfstate-x7k2pq-200048853243"   # ← 把 x7k2pq 换成你建桶时起的后缀!
+    bucket  = "mogu-tfstate-x7k2pq-1432854412"   # ← 已是实际值,无需再改
     prefix  = "terraform/state"
     encrypt = true
   }
@@ -230,7 +236,7 @@ fqdns = {
   admin = "admin-staging.moguexpress.com"
   api   = "api-staging.moguexpress.com"
 }
-cos_bucket         = "mogu-express-images-staging-xxx-200048853243"
+cos_bucket         = "mogu-express-images-staging-xxx-1432854412"
 mongo_instance_id  = "cmgo-xxxxxxxx"
 ```
 
