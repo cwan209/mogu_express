@@ -12,16 +12,14 @@ resource "random_id" "name_suffix" {
   byte_length = 2
 }
 
-# 主账号密码
+# 主账号密码 — 腾讯云 Mongo 规则:8-32 字符,大写+小写+数字+(可选)特殊;
+# special 字符集踩坑率高,索性关掉只用 alnum,够安全(20 字符的 alnum 熵 ~119 bit)
 resource "random_password" "mongo_root" {
-  length      = 24
-  special     = true
+  length      = 20
+  special     = false
   min_lower   = 1
   min_upper   = 1
   min_numeric = 1
-  min_special = 1
-  # 腾讯云密码不允许这些字符
-  override_special = "!@#$%^&*()_+-="
 }
 
 resource "tencentcloud_security_group" "mongo" {
