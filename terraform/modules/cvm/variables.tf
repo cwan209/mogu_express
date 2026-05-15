@@ -16,3 +16,9 @@ variable "internet_max_bandwidth_out" {
 variable "ssh_public_key" { type = string }
 variable "vpc_id" { type = string }
 variable "subnet_id" { type = string }
+
+variable "data_disk_size" {
+  description = "数据盘 GB,装 docker mongo 数据。50GB 起步够 H5 早期"
+  type        = number
+  default     = 50
+}

@@ -29,7 +29,7 @@ module "network" {
   source = "./modules/network"
 
   env_name          = var.env_name
-  availability_zone = var.mongo_availability_zone
+  availability_zone = var.cvm_availability_zone
 }
 
 module "cvm" {
@@ -37,7 +37,7 @@ module "cvm" {
 
   instance_name              = local.cvm_instance_name
   env_name                   = var.env_name
-  availability_zone          = var.mongo_availability_zone # CVM 跟 Mongo 同 AZ 确保 subnet 匹配
+  availability_zone          = var.cvm_availability_zone
   instance_type              = var.cvm_instance_type
   system_disk_size           = var.cvm_system_disk_size
   internet_max_bandwidth_out = var.cvm_internet_max_bandwidth_out
@@ -65,17 +65,6 @@ module "cloudflare_dns" {
   api_sub_domain   = "api${local.env_suffix}"
 }
 
-module "mongodb" {
-  source = "./modules/mongodb"
-
-  env_name          = var.env_name
-  region            = var.region
-  availability_zone = var.mongo_availability_zone
-  memory            = var.mongo_memory
-  volume            = var.mongo_volume
-  node_num          = var.mongo_node_num
-
-  vpc_id      = module.network.vpc_id
-  subnet_id   = module.network.subnet_id
-  subnet_cidr = module.network.subnet_cidr
-}
+# 注:Mongo 改为在 CVM 上 docker 自管(见 deploy/docker-compose.production.yml),
+# 数据持久化到独立 CBS 数据盘(cvm 模块输出 mongo_data_disk_id)。
+# 备份走 scripts/backup-mongo.sh,每日 dump → COS,30/60/365 天 lifecycle。

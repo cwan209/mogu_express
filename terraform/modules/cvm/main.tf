@@ -65,6 +65,20 @@ resource "tencentcloud_security_group_rule_set" "cvm" {
   }
 }
 
+# 独立数据盘 — mongo 数据持久化,生命周期独立于实例(重建 CVM 时数据保留)
+resource "tencentcloud_cbs_storage" "mongo_data" {
+  storage_name      = "${var.instance_name}-mongo-data"
+  storage_type      = "CLOUD_PREMIUM"
+  storage_size      = var.data_disk_size
+  availability_zone = var.availability_zone
+
+  tags = {
+    app      = "mogu-express"
+    mogu_env = var.env_name
+    purpose  = "mongo-data"
+  }
+}
+
 resource "tencentcloud_instance" "main" {
   instance_name     = var.instance_name
   availability_zone = var.availability_zone
@@ -99,4 +113,10 @@ resource "tencentcloud_instance" "main" {
       system_disk_size,
     ]
   }
+}
+
+# 把数据盘挂到 CVM,挂载点 /dev/vdb(系统盘是 /dev/vda),格式化 + 挂到 /data 由 ansible/init 脚本做
+resource "tencentcloud_cbs_storage_attachment" "mongo_data" {
+  storage_id  = tencentcloud_cbs_storage.mongo_data.id
+  instance_id = tencentcloud_instance.main.id
 }

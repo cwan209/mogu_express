@@ -15,9 +15,20 @@
 #   - 关闭 MinIO 服务(注释掉 minio 段),减少资源占用
 
 services:
-  # Mongo 不在 compose 内 —— 走 TencentDB for MongoDB(托管,3 节点副本集)
-  # MONGO_URL 通过 deploy/.env 注入,由 Terraform output 渲染
-  # 见 docs/iac.md「Mongo」章节
+  # Mongo 单节点容器,数据写到 /data(CVM 数据盘挂载点),
+  # 通过 scripts/backup-mongo.sh 每日 dump 到 COS 兜底
+  mongo:
+    image: mongo:7
+    container_name: mogu_mongo
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-mogu}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: mogu_express
+    volumes:
+      - /data/mongo:/data/db # CVM 数据盘挂载点,terraform/cvm 模块创建 + 服务器 init 脚本挂载
+    networks: [mogunet]
 
   minio:
     # 生产用腾讯云 COS 时可注释掉这一段
@@ -39,7 +50,7 @@ services:
     restart: unless-stopped
     environment:
       TZ: Asia/Shanghai
-      MONGO_URL: ${MONGO_URL}        # TencentDB 完整 URI(含 TLS + 副本集)
+      MONGO_URL: mongodb://${MONGO_ROOT_USER:-mogu}:${MONGO_ROOT_PASSWORD}@mongo:27017/mogu_express?authSource=admin
       S3_ENDPOINT: ${S3_ENDPOINT}
       S3_REGION: ${S3_REGION}
       S3_BUCKET: ${S3_BUCKET}
@@ -69,6 +80,8 @@ services:
       PORT: "4000"
     volumes:
       - ../cloudfunctions:/app/cloudfunctions:ro
+    depends_on:
+      - mongo
     networks: [mogunet]
 
   caddy:

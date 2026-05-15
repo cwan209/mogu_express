@@ -98,28 +98,10 @@ variable "cos_region" {
   default     = "ap-hongkong"
 }
 
-# ===== MongoDB(TencentDB)=====
+# ===== CVM AZ(VPC subnet 跟 CVM 同 zone)=====
 
-variable "mongo_memory" {
-  description = "TencentDB Mongo 内存 GB。HK REPLSET 最小档 4(2GB 在 HK 不卖),可调 8/16"
-  type        = number
-  default     = 4
-}
-
-variable "mongo_volume" {
-  description = "TencentDB Mongo 磁盘 GB。HK REPLSET 最小 100GB"
-  type        = number
-  default     = 100
-}
-
-variable "mongo_node_num" {
-  description = "副本集节点数(3 = 经典 HA)"
-  type        = number
-  default     = 3
-}
-
-variable "mongo_availability_zone" {
-  description = "TencentDB 可用区(同 region 不同 zone)"
+variable "cvm_availability_zone" {
+  description = "CVM 可用区(HK 可选 ap-hongkong-1/-2/-3)"
   type        = string
   default     = "ap-hongkong-2"
 }
