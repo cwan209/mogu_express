@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NavBar, Toast, Button, SpinLoading, Result } from 'antd-mobile';
-import { getOrderDetail, payShipping } from '../api/order';
+import { getOrderDetail, payShipping, simulatePay } from '../api/order';
 import { formatCny } from '../utils/money';
 import type { Order } from '../types';
 
@@ -31,15 +31,18 @@ export default function PayShipping() {
     setPaying(true);
     try {
       const r = await payShipping(order._id);
-      // stub 模式 payParams.__stub=true → 跳 PayResult(同 Checkout 风格)
-      // 真实模式 → location.href 跳 HuePay redirectUrl
+      // stub 模式:直接调 simulatePay(kind=shipping) 模拟回调 → 刷新订单
+      // (不能跳 /pay-result,那是主订单专用页;运费有独立 outTradeNo+amount)
       if (r.payParams?.__stub) {
-        nav(`/pay-result/${order._id}?stub=1`, { replace: true });
+        await simulatePay(order._id, 'shipping');
+        Toast.show({ icon: 'success', content: '支付成功' });
+        const fresh = await getOrderDetail(order._id);
+        setOrder(fresh); // 触发组件重渲染 → 顶部"已支付"成功态
       } else if (r.payParams?.redirectUrl) {
+        // 真实模式跳 HuePay,回调由 huepayNotify 异步更新 shippingFee.payStatus
         window.location.href = r.payParams.redirectUrl;
       } else {
-        // 兜底:无 redirectUrl 也无 stub,跳 PayResult 让用户看状态
-        nav(`/pay-result/${order._id}`, { replace: true });
+        Toast.show({ icon: 'fail', content: '支付参数异常' });
       }
     } catch (e: any) {
       Toast.show({ icon: 'fail', content: e.message || '支付失败' });

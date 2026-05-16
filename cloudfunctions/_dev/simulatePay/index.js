@@ -19,8 +19,9 @@ exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext();
   if (!OPENID) return { code: 401, message: 'not logged in' };
 
-  const { orderId, outTradeNo } = event || {};
+  const { orderId, outTradeNo, kind = 'main' } = event || {};
   if (!orderId && !outTradeNo) return { code: 1, message: 'orderId or outTradeNo required' };
+  if (kind !== 'main' && kind !== 'shipping') return { code: 1, message: "kind must be 'main' or 'shipping'" };
 
   let order;
   if (orderId) {
@@ -32,6 +33,30 @@ exports.main = async (event) => {
   }
   if (!order) return { code: 2, message: 'order not found' };
   if (order._openid !== OPENID) return { code: 403, message: 'forbidden' };
+
+  // ========== 运费尾款支付路径 ==========
+  if (kind === 'shipping') {
+    if (!order.shippingFee) return { code: 4, message: '该订单未设运费' };
+    if (order.shippingFee.payStatus === 'paid') {
+      return { code: 0, order, already: true, shippingFee: order.shippingFee };
+    }
+    if (!order.shippingFee.amount || order.shippingFee.amount <= 0) {
+      return { code: 6, message: '运费金额无效' };
+    }
+    const now = new Date();
+    await db.collection('orders').doc(order._id).update({
+      data: {
+        'shippingFee.payStatus': 'paid',
+        'shippingFee.paidAt': now,
+        'shippingFee.transactionId': 'STUB_TX_' + order.shippingFee.outTradeNo,
+        updatedAt: now,
+      },
+    });
+    const r2 = await db.collection('orders').doc(order._id).get();
+    return { code: 0, order: r2.data, simulated: true, kind: 'shipping' };
+  }
+
+  // ========== 主订单支付路径(下面是原逻辑)==========
   if (order.payStatus === 'paid') return { code: 0, order, already: true };
 
   // 模拟 HuePay 回调 body

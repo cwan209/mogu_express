@@ -45,8 +45,11 @@ export async function createOrder(payload: {
   };
 }
 
-export async function simulatePay(orderId: string): Promise<{ code: 0 }> {
-  return callCloud('_dev/simulatePay', { orderId });
+export async function simulatePay(
+  orderId: string,
+  kind: 'main' | 'shipping' = 'main',
+): Promise<{ code: 0 }> {
+  return callCloud('_dev/simulatePay', { orderId, kind });
 }
 
 export async function listMyOrders(filter?: { status?: string }): Promise<Order[]> {
