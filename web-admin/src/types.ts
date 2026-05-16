@@ -134,6 +134,14 @@ export interface ShippingAddress {
   postcode: string;
 }
 
+export interface ShippingFee {
+  amount: number;            // cents
+  outTradeNo: string;        // SHIP 前缀
+  payStatus: 'pending' | 'paid' | 'failed';
+  setAt: string;
+  paidAt: string | null;
+}
+
 export interface Order {
   _id: string;
   orderNo: string;
@@ -152,6 +160,7 @@ export interface Order {
   refundedAt?: string;
   refundId?: string;
   refundRejectReason?: string;
+  shippingFee?: ShippingFee;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Card, Descriptions, Tag, Table, Button, Space, message } from 'antd';
+import { Card, Descriptions, Tag, Table, Button, Space, message, Form, InputNumber } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { Order, OrderItem, OrderStatus } from '../types';
-import { getOrder, markShipped, markCompleted } from '../api/order';
+import { getOrder, markShipped, markCompleted, setShippingFee } from '../api/order';
 import { formatAud } from '../utils/money';
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
@@ -86,6 +86,57 @@ export default function OrderDetail() {
           {order.shippedAt && <Descriptions.Item label="发货时间">{new Date(order.shippedAt).toLocaleString('zh-CN')}</Descriptions.Item>}
           {order.remark && <Descriptions.Item label="备注" span={2}>{order.remark}</Descriptions.Item>}
         </Descriptions>
+      </Card>
+
+      <Card title="运费尾款" size="small">
+        {order.shippingFee?.payStatus === 'paid' ? (
+          <Tag color="green">已付 ¥{(order.shippingFee.amount / 100).toFixed(2)}</Tag>
+        ) : order.shippingFee ? (
+          <Space direction="vertical" size={8} style={{ display: 'flex' }}>
+            <Tag color="orange">待付 ¥{(order.shippingFee.amount / 100).toFixed(2)}</Tag>
+            <Form
+              layout="inline"
+              onFinish={async (vals: { amount: number }) => {
+                try {
+                  await setShippingFee(order._id, Math.round(vals.amount * 100));
+                  message.success('运费已更新');
+                  await load();
+                } catch (e: any) {
+                  message.error(e.message);
+                }
+              }}
+            >
+              <Form.Item name="amount" initialValue={order.shippingFee.amount / 100}>
+                <InputNumber min={0} step={0.5} addonBefore="¥" />
+              </Form.Item>
+              <Form.Item>
+                <Button htmlType="submit">改运费</Button>
+              </Form.Item>
+            </Form>
+          </Space>
+        ) : (
+          <Form
+            layout="inline"
+            onFinish={async (vals: { amount: number }) => {
+              try {
+                await setShippingFee(order._id, Math.round(vals.amount * 100));
+                message.success('运费已设置,记得在微信群里@通知用户');
+                await load();
+              } catch (e: any) {
+                message.error(e.message);
+              }
+            }}
+          >
+            <Form.Item name="amount" rules={[{ required: true, message: '请输入金额' }]}>
+              <InputNumber min={0} step={0.5} addonBefore="¥" placeholder="35.00" />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit">
+                设置运费
+              </Button>
+            </Form.Item>
+          </Form>
+        )}
       </Card>
 
       <Card title="收货信息" size="small">

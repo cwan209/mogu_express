@@ -43,6 +43,10 @@ export async function processRefund(
   await callCloud('_admin/processRefund', { orderId, action, ...(rejectReason ? { rejectReason } : {}) });
 }
 
+export async function setShippingFee(orderId: string, amount: number): Promise<void> {
+  await callCloud('_admin/setShippingFee', { orderId, amount });
+}
+
 export interface ExportResult {
   code: number;
   filename: string;
