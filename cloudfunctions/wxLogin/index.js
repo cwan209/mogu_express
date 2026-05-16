@@ -21,21 +21,23 @@ const { sign } = require('./jwt');
 
 const JWT_TTL_SEC = 30 * 24 * 3600; // 30 天
 
+const REQUEST_TIMEOUT_MS = 8000;
+
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
-    https
-      .get(url, (res) => {
-        let data = '';
-        res.on('data', (c) => (data += c));
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (e) {
-            reject(new Error('invalid JSON from wechat: ' + data));
-          }
-        });
-      })
-      .on('error', reject);
+    const req = https.get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error('invalid JSON from wechat: ' + data));
+        }
+      });
+    });
+    req.on('timeout', () => req.destroy(new Error('wechat api timeout')));
+    req.on('error', reject);
   });
 }
 
@@ -61,7 +63,8 @@ exports.main = async (event) => {
   try {
     res = await httpsGet(url);
   } catch (err) {
-    console.error('[wxLogin] wechat api network failure', err);
+    // 只 log err.message — 防 Node 把 url(含 secret) 塞进 err 对象的 input/config 属性
+    console.error('[wxLogin] wechat api network failure:', err && err.message);
     return { code: 2, message: 'wechat api unreachable' };
   }
 
