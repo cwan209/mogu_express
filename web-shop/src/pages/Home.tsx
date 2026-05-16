@@ -4,6 +4,7 @@ import { NavBar, NoticeBar, PullToRefresh, Skeleton, Empty, Image, Tag } from 'a
 import { listTuans, getHomeBanner, type HomeBanner } from '../api/tuan';
 import type { Tuan } from '../types';
 import { getCountdown } from '../utils/date';
+import PendingOrderBanner from '../components/PendingOrderBanner';
 
 const STATUS_LABEL: Record<Tuan['status'], { text: string; color: string }> = {
   draft: { text: '草稿', color: '#999' },
@@ -43,6 +44,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 pb-16">
       <NavBar back={null} className="bg-white">蘑菇接龙</NavBar>
+
+      <PendingOrderBanner />
 
       {banner?.enabled && (
         <NoticeBar

@@ -72,3 +72,21 @@ export async function mergeCart(
 ): Promise<{ code: 0 }> {
   return callCloud('upsertCart', { items, merge: true });
 }
+
+export interface PendingOrder {
+  _id: string;
+  orderNo: string;
+  items: Array<{ title: string; quantity: number }>;
+  shippingFee: {
+    amount: number;
+    payStatus: 'pending';
+    setAt: string;
+    outTradeNo: string;
+    paidAt: string | null;
+  };
+}
+
+export async function getPendingOrders(): Promise<PendingOrder[]> {
+  const r = await callCloud<{ orders: PendingOrder[] }>('getPendingOrders', {});
+  return r.orders;
+}
