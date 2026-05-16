@@ -166,6 +166,10 @@ jobs:
             set -e
             cd /opt/mogu_express
             sudo docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build
+            # Caddyfile 是 volume mount,内容变化不会触发 container restart;强制 reload 一次。
+            # 幂等:即使 Caddyfile 没变,reload 也不影响在线连接。
+            sudo docker compose -f deploy/docker-compose.production.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile || \
+              sudo docker compose -f deploy/docker-compose.production.yml restart caddy
             sudo docker compose -f deploy/docker-compose.production.yml ps
           EOF
 
