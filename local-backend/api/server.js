@@ -124,8 +124,15 @@ async function main() {
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: '10mb' }));
 
-  app.get('/health', (_req, res) => {
-    res.json({ code: 0, ok: true, ts: new Date().toISOString() });
+  // /health 给 uptime monitor (UptimeRobot) + LB healthcheck 用。
+  // 真 ping 一下 mongo,任何 5xx 都让外部监控可见(不能糊弄)。
+  app.get('/health', async (_req, res) => {
+    try {
+      await db.command({ ping: 1 });
+      res.json({ code: 0, ok: true, mongo: 'up', ts: new Date().toISOString() });
+    } catch (err) {
+      res.status(503).json({ code: 503, ok: false, mongo: 'down', error: err.message });
+    }
   });
 
   // List registered cloud functions
