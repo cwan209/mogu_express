@@ -36,3 +36,15 @@ export async function registerProfile(payload: {
 }): Promise<{ code: 0 }> {
   return callCloud('registerProfile', payload);
 }
+
+export interface WxLoginRes {
+  code: 0;
+  token: string;
+  openid: string;
+  isRegistered: boolean;
+  user?: { name?: string; phone?: string };
+}
+
+export async function wxLogin(code: string): Promise<WxLoginRes> {
+  return callCloud<WxLoginRes>('wxLogin', { code });
+}
