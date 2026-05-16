@@ -282,14 +282,14 @@ test('createOrder 库存不足时拒绝', async () => {
       suburb: 'M', state: 'VIC', postcode: '3000' }],
   });
   shim.__setContext({ OPENID: 'u1' });
-  // createOrder throws { code: 6, message: '...' } (plain object, not Error)
-  await assert.rejects(
-    requireCf('createOrder').main({
-      items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 999 }],
-      addressId: 'addr1', requirePay: false,
-    }, {}),
-    (err) => err && err.code === 6 && /库存不足/.test(err.message || ''),
-  );
+  // fast-path 库存预检在事务外,返 {code:6,message:'库存不足'} 而非 throw
+  // (commit 51564c8 把 throw 改 return,避免售罄商品白白占事务锁)
+  const r = await requireCf('createOrder').main({
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 999 }],
+    addressId: 'addr1', requirePay: false,
+  }, {});
+  assert.equal(r.code, 6, `expected code 6, got ${JSON.stringify(r)}`);
+  assert.match(r.message, /库存不足/);
 });
 
 test('cancelOrder 仅 pending_pay 可取消(paid 拒绝)', async () => {
