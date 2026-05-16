@@ -49,12 +49,7 @@
     header_up X-Forwarded-Proto {scheme}
   }
 
-  # CORS — Web 后台跨域调 API
-  @options method OPTIONS
-  respond @options 204
-  header {
-    Access-Control-Allow-Origin "*"
-    Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Access-Control-Allow-Headers "Content-Type, Authorization, x-mock-openid"
-  }
+  # CORS 由 express(cors middleware,origin: true + credentials)处理,
+  # 不要在 Caddy 这层也加 — 浏览器看到两个 Access-Control-Allow-Origin
+  # 就拒(报 "contains multiple values")。
 }
