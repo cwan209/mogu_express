@@ -168,22 +168,18 @@ jobs:
             source deploy/.env
             sudo docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build
 
-            # Mongo 单节点 replset 初始化(幂等 — 已 init 就报错跳过)
-            # mongo 启动后有 ~5s 等不接收连接的窗口
+            # Mongo 单节点 replset 初始化(幂等 — 已 init 时 rs.initiate 报
+            # AlreadyInitialized,catch 掉即可)。无 auth,直接 mongosh。
             for i in 1 2 3 4 5 6; do
               sleep 3
-              if sudo docker exec mogu_mongo mongosh \
-                  -u "$MONGO_ROOT_USER" -p "$MONGO_ROOT_PASSWORD" \
-                  --authenticationDatabase admin --quiet \
+              if sudo docker exec mogu_mongo mongosh --quiet \
                   --eval 'rs.status().ok' 2>/dev/null | grep -q '^1$'; then
-                echo "replset already initialized"
+                echo "replset OK"
                 break
               fi
-              echo "trying rs.initiate (attempt $i)..."
-              # 注:rs.initiate 第一次跑时不需要 auth(还没有 user 创建);
-              # 之后跑要 auth。两种情况都尝试。
+              echo "rs.initiate attempt $i..."
               sudo docker exec mogu_mongo mongosh --quiet --eval \
-                'try { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo:27017"}]}) } catch(e) { print(e.message) }' && break
+                'try { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo:27017"}]}); print("initiated") } catch(e) { print("init err:"+e.message) }'
             done
 
             # Caddyfile reload(同前)

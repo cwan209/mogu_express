@@ -30,15 +30,13 @@ LOG_PREFIX="[$(date '+%Y-%m-%d %H:%M:%S')]"
 if [[ -f "$ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
-  source <(grep -E '^(S3_|ENV_NAME|MONGO_ROOT_)' "$ENV_FILE" || true)
+  source <(grep -E '^(S3_|ENV_NAME)' "$ENV_FILE" || true)
   set +a
 fi
 
 : "${S3_ACCESS_KEY:?need S3_ACCESS_KEY}"
 : "${S3_SECRET_KEY:?need S3_SECRET_KEY}"
 : "${S3_BUCKET:?need S3_BUCKET}"
-: "${MONGO_ROOT_USER:?need MONGO_ROOT_USER}"
-: "${MONGO_ROOT_PASSWORD:?need MONGO_ROOT_PASSWORD}"
 
 # S3_REGION 可能不在 .env 里(只有 S3_ENDPOINT),从 endpoint 解析
 S3_REGION=${S3_REGION:-$(echo "${S3_ENDPOINT:-}" | sed -nE 's|https?://cos\.([^.]+)\.myqcloud\.com.*|\1|p')}
@@ -50,11 +48,8 @@ DUMP_FILE="/tmp/mogu-${ENV_TAG}-${DATE}.gz"
 
 echo "${LOG_PREFIX} mongodump start (db=${DB_NAME}, env=${ENV_TAG})"
 
-# docker exec 跑 mongodump,带 auth
+# docker exec 跑 mongodump(mongo 无 auth,内网容器隔离)
 if ! docker exec "$MONGO_CONTAINER" mongodump \
-      --username "$MONGO_ROOT_USER" \
-      --password "$MONGO_ROOT_PASSWORD" \
-      --authenticationDatabase admin \
       --db "$DB_NAME" \
       --archive --gzip > "$DUMP_FILE"; then
   echo "${LOG_PREFIX} mongodump FAILED"

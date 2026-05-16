@@ -21,19 +21,16 @@ services:
     image: mongo:7
     container_name: mogu_mongo
     restart: unless-stopped
-    # 单节点 replica set + keyFile auth — multi-doc transaction 需要 replset
+    # 单节点 replset(multi-doc transaction 需要)。不开 auth — 容器只在内网
+    # docker network 暴露,没有 ports: 映射到宿主;keyFile + auth + replSet
+    # 三件套有鸡蛋问题,YAGNI。
     command:
       - --replSet=rs0
       - --bind_ip_all
-      - --keyFile=/etc/mongo-keyfile
     environment:
       TZ: Asia/Shanghai
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-mogu}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: mogu_express
     volumes:
-      - /data/mongo:/data/db # CVM 数据盘
-      - /data/mongo-keyfile:/etc/mongo-keyfile:ro # server-init.sh 生成
+      - /data/mongo:/data/db
     networks: [mogunet]
 
   minio:
@@ -56,7 +53,7 @@ services:
     restart: unless-stopped
     environment:
       TZ: Asia/Shanghai
-      MONGO_URL: mongodb://${MONGO_ROOT_USER:-mogu}:${MONGO_ROOT_PASSWORD}@mongo:27017/mogu_express?authSource=admin&replicaSet=rs0
+      MONGO_URL: mongodb://mongo:27017/mogu_express?replicaSet=rs0
       MONGO_DIRECT_CONNECTION: "1" # 单节点 replset 必须 direct,避免 driver discovery 死循环
       S3_ENDPOINT: ${S3_ENDPOINT}
       S3_REGION: ${S3_REGION}
