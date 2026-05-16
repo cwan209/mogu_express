@@ -71,21 +71,25 @@ chown ubuntu:ubuntu /opt/mogu_express
 
 # ---------- 5. coscli(Mongo 备份上传 COS 用)----------
 COSCLI_BIN=/usr/local/bin/coscli
-COSCLI_VERSION=v1.0.5
+COSCLI_VERSION=v1.0.8 # 升级前确认 https://github.com/tencentyun/coscli/releases
 if [ ! -x "$COSCLI_BIN" ]; then
   log "装 coscli ${COSCLI_VERSION}..."
   ARCH=$(uname -m)
   case "$ARCH" in
-    x86_64)  COSCLI_ARCH=linux-amd64 ;;
+    x86_64) COSCLI_ARCH=linux-amd64 ;;
     aarch64) COSCLI_ARCH=linux-arm64 ;;
-    *) log "ERROR: 不支持的架构 $ARCH"; exit 1 ;;
+    *)
+      log "ERROR: 不支持的架构 $ARCH"
+      exit 1
+      ;;
   esac
-  curl -fsSL "https://github.com/tencentyun/coscli/releases/download/${COSCLI_VERSION}/coscli-${COSCLI_ARCH}" \
+  # 文件名格式:coscli-<version>-<arch>(version 带 v 前缀)
+  curl -fsSL "https://github.com/tencentyun/coscli/releases/download/${COSCLI_VERSION}/coscli-${COSCLI_VERSION}-${COSCLI_ARCH}" \
     -o "$COSCLI_BIN"
   chmod +x "$COSCLI_BIN"
   log "coscli 装好:$($COSCLI_BIN --version 2>&1 | head -1)"
 else
-  log "coscli 已装,跳过"
+  log "coscli 已装:$($COSCLI_BIN --version 2>&1 | head -1)"
 fi
 
 # ---------- 6. Cron — 每日 03:00 跑 Mongo 备份 ----------
