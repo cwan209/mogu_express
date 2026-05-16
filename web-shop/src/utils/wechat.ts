@@ -18,7 +18,15 @@ function genState(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-/** 跳转到微信授权页(snsapi_base,无弹窗静默) */
+/** 跳转到微信授权页(snsapi_userinfo,首次弹一次授权框)
+ *
+ * snsapi_userinfo 比 snsapi_base 多拿:nickname / headimgurl / sex / country /
+ * province / city / language。首次弹"该网站想获取以下信息"对话框,用户点同意
+ * 后微信记住此 appid 的授权,之后该用户进来不再弹。
+ *
+ * 注:2022+ 微信对新用户做 nickname/avatar 脱敏(返"微信用户"+默认头像),
+ * 老用户可能仍是真昵称/头像。地区信息(country/province/city)未脱敏。
+ */
 export function redirectToWechatAuth(returnPath: string): void {
   if (!APP_ID) {
     console.warn('[wechat] VITE_WECHAT_APP_ID 未配,跳过 OAuth');
@@ -36,7 +44,7 @@ export function redirectToWechatAuth(returnPath: string): void {
     `?appid=${APP_ID}` +
     `&redirect_uri=${redirectUri}` +
     `&response_type=code` +
-    `&scope=snsapi_base` +
+    `&scope=snsapi_userinfo` +
     `&state=${state}` +
     `#wechat_redirect`;
   window.location.href = url;
