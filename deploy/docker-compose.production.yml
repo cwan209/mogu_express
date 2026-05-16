@@ -65,6 +65,9 @@ services:
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
       JWT_SECRET: ${JWT_SECRET}
       BUMP_EXPIRED_TUANS: "0"
+      # 公众号 OAuth (wxLogin 云函数用) — 留空时前端 bootstrap 静默 skip,走 OTP 兜底
+      WECHAT_APP_ID: ${WECHAT_APP_ID:-}
+      WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:-}
       # OTP 短信(留空走 stub 模式,生产强烈建议配真实)
       SMS_STUB: ${SMS_STUB:-1}
       TENCENT_SMS_SECRET_ID: ${TENCENT_SMS_SECRET_ID:-}

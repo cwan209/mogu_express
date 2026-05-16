@@ -77,6 +77,9 @@ jobs:
       - name: Install + build web-shop
         env:
           VITE_API_BASE: https://${{ steps.env.outputs.api_host }}
+          # AppID 是公开值(微信回跳 URL 里就带),用 Repository variable 即可;
+          # 没配时前端 redirect 静默 skip,bootstrap 友好降级到 fallback /login
+          VITE_WECHAT_APP_ID: ${{ env.ENV_NAME == 'prod' && vars.WECHAT_APP_ID_PROD || vars.WECHAT_APP_ID_STAGING }}
         run: |
           cd web-shop
           npm ci
