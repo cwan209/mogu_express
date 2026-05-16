@@ -26,18 +26,33 @@ export default function Profile() {
     <div className="min-h-screen bg-gray-100">
       <NavBar back={null}>我的</NavBar>
 
-      {/* 用户卡片 */}
+      {/* 用户卡片 — 优先用微信 OAuth 拉到的 nickname+avatar,fallback 到自填资料 */}
       <div className="bg-white p-4 flex items-center gap-3">
-        <Image
-          src=""
-          width={56}
-          height={56}
-          fallback={<div className="w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center text-2xl">{(user?.name || user?.phone || '?').slice(0, 1).toUpperCase()}</div>}
-          style={{ borderRadius: '50%' }}
-        />
+        {user?.wechat?.avatar ? (
+          <Image
+            src={user.wechat.avatar}
+            width={56}
+            height={56}
+            fallback={
+              <div className="w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center text-2xl">
+                {(user?.wechat?.nickname || user?.name || '?').slice(0, 1).toUpperCase()}
+              </div>
+            }
+            style={{ borderRadius: '50%' }}
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center text-2xl">
+            {(user?.wechat?.nickname || user?.name || '?').slice(0, 1).toUpperCase()}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
-          <div className="text-base font-medium">{user?.name || '未填写姓名'}</div>
-          <div className="text-xs text-gray-500 mt-0.5">{user?.phone || '未绑定手机'}</div>
+          <div className="text-base font-medium">
+            {user?.wechat?.nickname || user?.name || '微信用户'}
+          </div>
+          {/* OAuth 用户不依赖手机号登录,仅在自填了才显示 */}
+          {user?.phone && (
+            <div className="text-xs text-gray-500 mt-0.5">{user.phone}</div>
+          )}
         </div>
       </div>
 

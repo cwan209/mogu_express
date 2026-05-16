@@ -26,7 +26,12 @@ export default function OauthCallback() {
         const r = await wxLogin(params.code);
         setAuth(
           r.token,
-          { openid: r.openid, name: r.user?.name, phone: r.user?.phone },
+          {
+            openid: r.openid,
+            name: r.user?.name,
+            phone: r.user?.phone,
+            wechat: r.user?.wechat ?? null,
+          },
           r.isRegistered,
         );
         const returnPath = consumeReturnPath();

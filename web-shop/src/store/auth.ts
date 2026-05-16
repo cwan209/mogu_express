@@ -7,10 +7,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export interface WxProfile {
+  nickname: string | null;
+  avatar: string | null;
+  sex: 0 | 1 | 2 | null;
+  country: string | null;
+  province: string | null;
+  city: string | null;
+  language: string | null;
+}
+
 interface UserProfile {
   openid: string;
   name?: string;
   phone?: string;
+  /** 微信公众号 OAuth (snsapi_userinfo) 拉到的资料,null = 走 OTP 流程没有 */
+  wechat?: WxProfile | null;
 }
 
 interface AuthState {
