@@ -22,13 +22,15 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: '环境'
+        description: '环境(prod 是真生产,谨慎)'
         required: true
         type: choice
+        default: staging
         options: [staging, prod]
 
+# push to main / PR → staging(默认安全);prod 只能 workflow_dispatch + 显式选择
 concurrency:
-  group: deploy-${{ github.event_name == 'push' && 'prod' || 'staging' }}
+  group: deploy-${{ inputs.env || 'staging' }}
   cancel-in-progress: true
 
 permissions:
@@ -38,7 +40,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      ENV_NAME: ${{ github.event_name == 'push' && 'prod' || (inputs.env || 'staging') }}
+      ENV_NAME: ${{ inputs.env || 'staging' }}
       VPS_USER: ubuntu
       DEPLOY_PATH: /opt/mogu_express
     steps:

@@ -105,26 +105,33 @@ terraform plan  -var-file=environments/prod.tfvars
 terraform apply -var-file=environments/prod.tfvars
 ```
 
-完成后,后续修改:
-- 改 terraform/* 开 PR → GHA `terraform-plan.yml` 自动 plan **两个环境**,贴 PR comment
-- PR open/sync → GHA `terraform-apply.yml` **自动 apply staging**
-- merge to main → GHA `terraform-apply.yml` **自动 apply prod**
+完成后,后续修改的触发关系:
+
+| 事件 | terraform-plan | terraform-apply | deploy-app |
+|---|---|---|---|
+| PR open/sync | ✅ plan staging + prod,贴 comment | ❌ | ✅ apply staging |
+| merge to main | — | ✅ apply staging | ✅ apply staging |
+| workflow_dispatch `env=staging` | — | ✅ apply staging | ✅ deploy staging |
+| workflow_dispatch `env=prod` | — | ✅ apply prod | ✅ deploy prod |
+
+**安全设计**:`prod` 永远只能手动 workflow_dispatch 触发,push to main 默认走 staging,
+避免误 merge 直接打到生产。
 
 ## 日常运维流程
 
 ### 改基础设施(改 VPS 套餐 / 加 COS lifecycle / 改 DNS)
 
 1. 改 `terraform/**` 文件
-2. 开 PR
-3. **terraform-plan.yml** workflow 自动跑 plan,把 diff 贴到 PR comment
-4. Review,merge
-5. **terraform-apply.yml** workflow 自动 apply
+2. 开 PR → **terraform-plan.yml** 自动 plan,把 diff 贴 PR comment
+3. Review + merge → **terraform-apply.yml** 自动 apply **staging**
+4. staging 看着没问题,Actions → Terraform Apply → Run workflow → 选 `env=prod` 应用到 prod
 
 ### 改应用代码(web-shop / web-admin / cloudfunctions)
 
 1. 开 PR(branch → main) → **deploy-app.yml** 自动部署到 **staging**
 2. 在 staging 上手机扫码 / 团长 admin 验证
-3. Merge to main → **deploy-app.yml** 自动部署到 **prod**
+3. Merge to main → **deploy-app.yml** 再部署一次 **staging**(确认 main 上的 staging 也正常)
+4. Actions → Deploy App → Run workflow → 选 `env=prod` 上线生产
 
 Workflow 自动:
 - npm ci + `vite build --mode <staging|prod>`(读对应 `.env.staging` / `.env.prod`)

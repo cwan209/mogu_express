@@ -6,30 +6,28 @@ on:
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform-apply.yml'
-  pull_request:
-    types: [labeled, opened, synchronize, reopened]
-    paths:
-      - 'terraform/**'
   workflow_dispatch:
     inputs:
       env:
-        description: '环境'
+        description: '环境(prod 是真生产,谨慎)'
         required: true
         type: choice
+        default: staging
         options: [staging, prod]
 
+# push to main → staging apply(默认安全);prod 只能 workflow_dispatch + 显式选择;
+# PR 的 plan/diff 见 terraform-plan.yml(只 plan 不 apply)
 concurrency:
-  group: terraform-apply-${{ github.event_name == 'pull_request' && 'staging' || (inputs.env || 'prod') }}
+  group: terraform-apply-${{ inputs.env || 'staging' }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  # Staging: PR open/sync 自动 apply
   staging:
     if: |
-      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && inputs.env == 'staging')
     runs-on: ubuntu-latest
     defaults:
@@ -62,11 +60,9 @@ jobs:
           path: terraform/outputs.json
           retention-days: 30
 
-  # Prod: main push or workflow_dispatch(env=prod)
+  # Prod: 只能手动 workflow_dispatch(env=prod)
   prod:
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.env == 'prod')
+    if: github.event_name == 'workflow_dispatch' && inputs.env == 'prod'
     runs-on: ubuntu-latest
     defaults:
       run:
