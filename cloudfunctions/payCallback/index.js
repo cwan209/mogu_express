@@ -66,6 +66,61 @@ exports.main = async (event) => {
     return { code: 0, message: 'ok' };  // 仍返 ACK 让 HuePay 停止重试
   }
 
+  // 按 outTradeNo 前缀路由:
+  //   TRADE* — 主订单(原逻辑,见下方)
+  //   SHIP*  — 运费尾款,走 order.shippingFee 分支
+  if (outTradeNo.startsWith('SHIP')) {
+    const shipRes = await db
+      .collection('orders')
+      .where({ 'shippingFee.outTradeNo': outTradeNo })
+      .limit(1)
+      .get();
+    const shipOrder = shipRes.data && shipRes.data[0];
+    if (!shipOrder) {
+      console.warn('[payCallback] SHIP outTradeNo no match:', outTradeNo);
+      await updateLog(logId, { result: 'ship_order_not_found', outTradeNo });
+      return { code: 404, message: 'order not found by SHIP outTradeNo' };
+    }
+
+    // 幂等:运费已 paid 直接 ACK
+    if (shipOrder.shippingFee && shipOrder.shippingFee.payStatus === 'paid') {
+      console.log(`[payCallback] SHIP ${outTradeNo} already paid,幂等忽略`);
+      await updateLog(logId, { result: 'ship_already_paid', orderId: shipOrder._id });
+      return { code: 0, message: 'ok' };
+    }
+
+    // 金额校验(若回调给了金额)
+    if (amount != null && shipOrder.shippingFee && Number(amount) !== shipOrder.shippingFee.amount) {
+      console.error(`[payCallback] SHIP amount mismatch: expect ${shipOrder.shippingFee.amount}, got ${amount}`);
+      await updateLog(logId, {
+        result: 'ship_amount_mismatch',
+        expected: shipOrder.shippingFee.amount,
+        got: amount,
+      });
+      return { code: 409, message: 'amount mismatch' };
+    }
+
+    const shipNow = new Date();
+    const shipPaidAt = paidAt ? new Date(paidAt) : shipNow;
+    try {
+      await db.collection('orders').doc(shipOrder._id).update({
+        data: {
+          'shippingFee.payStatus': 'paid',
+          'shippingFee.paidAt': shipPaidAt,
+          updatedAt: shipNow,
+        },
+      });
+    } catch (err) {
+      console.error('[payCallback] SHIP update failed', err);
+      await updateLog(logId, { result: 'ship_update_failed', error: err.message });
+      return { code: 500, message: 'internal error' };
+    }
+
+    await updateLog(logId, { result: 'ship_ok', orderId: shipOrder._id });
+    console.log(`[payCallback] SHIP ${outTradeNo} → shippingFee.paid (order ${shipOrder._id})`);
+    return { code: 0, message: 'ok' };
+  }
+
   // 幂等:按 outTradeNo 查,若已 paid 直接 ACK
   const orderRes = await db.collection('orders').where({ outTradeNo }).limit(1).get();
   const order = orderRes.data && orderRes.data[0];
