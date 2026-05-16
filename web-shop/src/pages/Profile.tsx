@@ -49,8 +49,9 @@ export default function Profile() {
           <div className="text-base font-medium">
             {user?.wechat?.nickname || user?.name || '微信用户'}
           </div>
-          {/* OAuth 用户不依赖手机号登录,仅在自填了才显示 */}
-          {user?.phone && (
+          {/* 仅 OTP 流程用户(没 wechat 资料)显示手机号 — OAuth 用户的手机号
+              是历史 OTP/RegisterProfile 残留,不是身份标识,UI 不展示 */}
+          {!user?.wechat && user?.phone && (
             <div className="text-xs text-gray-500 mt-0.5">{user.phone}</div>
           )}
         </div>
