@@ -7,18 +7,18 @@
 ## 1. 核心业务流程(手机/浏览器手动跑,~30 分钟)
 
 ### 客户端 — https://shop-staging.moguexpress.com
-- [ ] 首页看到 3 个团 + 18 个商品
-- [ ] 点商品详情 → 加购物车
-- [ ] 购物车 → 下单(`HUEPAY_STUB=1` 时跳 PayResult 显示"已支付")
-- [ ] 我的订单 → 看到该订单
-- [ ] 退出 → OTP 登录(`SMS_STUB=1` 时验证码在 api 容器 log 里 print)
-  - 查看方式:`ssh ubuntu@$VPS 'sudo docker logs mogu_api --tail 50 | grep -i otp'`
+- [x] 首页看到 3 个团 + 18 个商品 ✅ 2026-05-16
+- [x] 点商品详情 → 加购物车 ✅ 2026-05-16
+- [x] 购物车 → 下单(`HUEPAY_STUB=1` 时跳 PayResult 显示"已支付")✅ 2026-05-16
+- [x] 我的订单 → 看到该订单 ✅ 2026-05-16
+- [x] 退出 → OTP 登录(`SMS_STUB=1` 时验证码在 api 容器 log 里 print)✅ 2026-05-16
+  - 查看方式:`ssh ubuntu@$VPS 'sudo docker logs -f mogu_api 2>&1 | grep -i --line-buffered "otp\|verifyOtp\|sendOtp"'`
 
 ### 团长后台 — https://admin-staging.moguexpress.com
-- [ ] 用 `admin / admin` 登录
-- [ ] 团管理:看到 3 个团
-- [ ] 订单管理:看到刚才下的订单
-- [ ] 改发货状态 → 客户端"我的订单"状态同步刷新
+- [x] 用 `admin / admin` 登录 ✅ 2026-05-16
+- [x] 团管理:看到 3 个团 ✅ 2026-05-16
+- [x] 订单管理:看到刚才下的订单 ✅ 2026-05-16
+- [x] 改发货状态 → 客户端"我的订单"状态同步刷新 ✅ 2026-05-16
 
 ## 2. 基建可靠性(各 5-15 分钟)
 

@@ -63,7 +63,17 @@
 
 ## 已关闭
 
-### 2026-05-16
+### 2026-05-16(下午,业务流程全验证)
+
+- **Staging 业务流程端到端通过** — 客户端 + 团长后台全部 8 项手测勾完,
+  见 `docs/staging-readiness.md` § 1。值得记录的发现:
+  - `createOrder` 走 docker mongo 单节点 replset transaction OK
+  - HuePay stub 模式下 PayResult 跳转 + 订单状态 'paid' 正确
+  - admin 改发货 → 客户端"我的订单"状态同步
+  - 新订单号格式 `MG<YYYYMMDDHHMMSS><6 hex>`(crypto.randomBytes 替代 Math.random)生效
+  - 秒杀场景下 fast-path 预检 + atomic `$inc` 兜底,中爆款(200/5min)够用
+
+### 2026-05-16(上午)
 
 - **P0 #1 Mongo 数据全丢** — 备份链路端到端跑通验证:
   - `backup-mongo.sh` 跑成 → COS `cos://app/backup/staging/` 看到 gz
