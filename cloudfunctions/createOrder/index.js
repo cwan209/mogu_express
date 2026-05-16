@@ -13,6 +13,15 @@
 //
 // Stub 模式下(HUEPAY_STUB=1)SDK 返回带 __stub 标记的 payParams,
 // 小程序识别后跳过 wx.requestPayment,直接调 _dev/simulatePay 模拟回调。
+//
+// 订单 schema(部分):
+//   shippingFee?: {             // 尾款,_admin/setShippingFee 时填,初始没有此字段
+//     amount: Number,            // 分
+//     outTradeNo: 'SHIP<...>',
+//     payStatus: 'pending' | 'paid' | 'failed',
+//     setAt: Date,
+//     paidAt: Date | null,
+//   }
 
 const crypto = require('crypto');
 const cloud = require('wx-server-sdk');
