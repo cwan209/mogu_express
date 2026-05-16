@@ -65,10 +65,9 @@ fi
 SIZE=$(stat -c%s "$DUMP_FILE" 2>/dev/null || wc -c < "$DUMP_FILE")
 echo "${LOG_PREFIX} mongodump OK (${SIZE} bytes)"
 
-# coscli 配置(幂等)
-COS_CONFIG_DIR="$HOME/.cos"
-mkdir -p "$COS_CONFIG_DIR"
-cat > "$COS_CONFIG_DIR/config.yaml" <<EOF
+# coscli 配置(幂等)— 注意 coscli 默认读 ~/.cos.yaml 单文件,不是 ~/.cos/config.yaml
+COS_CONFIG_FILE="$HOME/.cos.yaml"
+cat > "$COS_CONFIG_FILE" <<EOF
 cos:
   base:
     secretid: $S3_ACCESS_KEY
@@ -81,6 +80,7 @@ cos:
       region: $S3_REGION
       endpoint: ""
 EOF
+chmod 600 "$COS_CONFIG_FILE"
 
 REMOTE_PATH="cos://app/backup/${ENV_TAG}/${DATE}.gz"
 echo "${LOG_PREFIX} uploading to ${REMOTE_PATH}"
