@@ -54,7 +54,7 @@
 
 ## Prod 上线前必清的 P0 / P1
 
-- [ ] #1 备份链路验过
+- [x] #1 备份链路验过(staging 2026-05-16,prod 上线后再验一次)
 - [ ] #2 SMS 上真线前必须做频控 + 验证码
 - [ ] #3 HuePay 接入时签名 + amount + replay 防御
 - [ ] #6 LE 证书剩余天数监控
@@ -63,4 +63,21 @@
 
 ## 已关闭
 
-(空)
+### 2026-05-16
+
+- **P0 #1 Mongo 数据全丢** — 备份链路端到端跑通验证:
+  - `backup-mongo.sh` 跑成 → COS `cos://app/backup/staging/` 看到 gz
+  - cron 注册在 `/etc/cron.d/mogu-backup`,每天 03:00 自动跑
+  - 灾备步骤见 `docs/disaster-recovery.md` 场景 1-3
+
+  **过程中踩的坑(供后续 prod 上线 / 其他 service 接 COS 时参考)**:
+  1. `tencentcloud_cam_access_key.id` 是 `<uin>#<AKID>` 复合 ID,不是 pure AKID。
+     output 必须 `split("#", id)[1]`,否则 .env 里的 AK 格式无效,COS 返
+     `InvalidAccessKeyId`。后续接 sub-account 类资源都要查这个语义。
+  2. CAM policy 写枚举动作(PutObject/HeadObject/...)容易漏 — coscli/sdk
+     的各种 precheck 操作(HeadBucket / GetBucketLocation)会一个个 403。
+     正解:`cos:*` 限定到 resource(bucket ARN)维度,动作维度全开。
+  3. coscli 配置文件路径是 `~/.cos.yaml`(单文件),不是 `~/.cos/config.yaml`。
+     写错会触发交互向导,在 cron 模式下挂死。
+  4. coscli GitHub release asset 命名带版本号:
+     `coscli-v1.0.8-linux-amd64`,不是 `coscli-linux-amd64`。
