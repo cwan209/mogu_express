@@ -69,13 +69,10 @@ resource "tencentcloud_cam_policy" "cos_writer" {
     statement = [
       {
         effect = "allow"
-        action = [
-          "name/cos:PutObject",
-          "name/cos:GetObject",
-          "name/cos:DeleteObject",
-          "name/cos:HeadObject",
-          "name/cos:GetBucket",
-        ]
+        # cos:* 限定到本 bucket — 已是最小权限的"资源维度",动作维度全开省得漏。
+        # coscli/aws-sdk 在不同操作前会做各种 HEAD / GetBucketLocation precheck,
+        # 一个个动作枚举既容易漏(403),也徒增维护成本。
+        action = ["name/cos:*"]
         resource = [
           "qcs::cos:${var.region}:uid/${data.tencentcloud_user_info.current.app_id}:${tencentcloud_cos_bucket.images.bucket}/*",
           "qcs::cos:${var.region}:uid/${data.tencentcloud_user_info.current.app_id}:${tencentcloud_cos_bucket.images.bucket}",
