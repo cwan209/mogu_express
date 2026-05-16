@@ -69,4 +69,38 @@ chown -R 999:999 "$DATA_MNT/mongo"
 mkdir -p /opt/mogu_express
 chown ubuntu:ubuntu /opt/mogu_express
 
+# ---------- 5. coscli(Mongo 备份上传 COS 用)----------
+COSCLI_BIN=/usr/local/bin/coscli
+COSCLI_VERSION=v1.0.5
+if [ ! -x "$COSCLI_BIN" ]; then
+  log "装 coscli ${COSCLI_VERSION}..."
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64)  COSCLI_ARCH=linux-amd64 ;;
+    aarch64) COSCLI_ARCH=linux-arm64 ;;
+    *) log "ERROR: 不支持的架构 $ARCH"; exit 1 ;;
+  esac
+  curl -fsSL "https://github.com/tencentyun/coscli/releases/download/${COSCLI_VERSION}/coscli-${COSCLI_ARCH}" \
+    -o "$COSCLI_BIN"
+  chmod +x "$COSCLI_BIN"
+  log "coscli 装好:$($COSCLI_BIN --version 2>&1 | head -1)"
+else
+  log "coscli 已装,跳过"
+fi
+
+# ---------- 6. Cron — 每日 03:00 跑 Mongo 备份 ----------
+# /etc/cron.d/* 比 crontab -e 更可控,部署可重写
+CRON_FILE=/etc/cron.d/mogu-backup
+cat > "$CRON_FILE" <<'EOF'
+# Mogu Express — Mongo daily backup → COS
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 3 * * * ubuntu /opt/mogu_express/scripts/backup-mongo.sh >> /var/log/mogu-backup.log 2>&1
+EOF
+chmod 644 "$CRON_FILE"
+touch /var/log/mogu-backup.log
+chown ubuntu:ubuntu /var/log/mogu-backup.log
+log "cron 已注册 → $CRON_FILE"
+
 log "完成 ✓"
