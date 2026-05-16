@@ -60,10 +60,18 @@ mountpoint -q "$DATA_MNT" || mount "$DATA_MNT"
 log "$DATA_MNT 已挂载:"
 df -h "$DATA_MNT" | tail -1
 
-# ---------- 3. Mongo data dir ----------
+# ---------- 3. Mongo data dir + keyfile ----------
 mkdir -p "$DATA_MNT/mongo"
-# mongo:7 镜像内 uid 999 = mongodb
-chown -R 999:999 "$DATA_MNT/mongo"
+chown -R 999:999 "$DATA_MNT/mongo" # mongo:7 镜像内 uid 999 = mongodb
+
+# Replset auth 必须有 keyfile(单节点也需要);幂等
+KEYFILE="$DATA_MNT/mongo-keyfile"
+if [ ! -f "$KEYFILE" ]; then
+  log "生成 mongo keyfile..."
+  openssl rand -base64 756 > "$KEYFILE"
+fi
+chmod 400 "$KEYFILE"
+chown 999:999 "$KEYFILE"
 
 # ---------- 4. 部署目录 ----------
 mkdir -p /opt/mogu_express
