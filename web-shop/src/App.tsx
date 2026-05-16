@@ -9,6 +9,7 @@ import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import PayResult from './pages/PayResult';
+import PayShipping from './pages/PayShipping';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Profile from './pages/Profile';
@@ -86,6 +87,7 @@ export default function App() {
       {/* 需登录 — 二级页 */}
       <Route path="/checkout" element={<Protected><Checkout /></Protected>} />
       <Route path="/pay-result/:orderId" element={<Protected><PayResult /></Protected>} />
+      <Route path="/pay-shipping/:id" element={<Protected><PayShipping /></Protected>} />
       <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />
       <Route path="/addresses" element={<Protected><Addresses /></Protected>} />
 

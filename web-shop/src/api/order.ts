@@ -90,3 +90,13 @@ export async function getPendingOrders(): Promise<PendingOrder[]> {
   const r = await callCloud<{ orders: PendingOrder[] }>('getPendingOrders', {});
   return r.orders;
 }
+
+export interface PayShippingResp {
+  code: 0;
+  payParams: PayParams; // 同 createOrder 同款,stub mode 带 __stub:true / redirectUrl(真实)
+  raw: { stub: boolean } | null;
+}
+
+export async function payShipping(orderId: string): Promise<PayShippingResp> {
+  return callCloud<PayShippingResp>('payShipping', { orderId });
+}
