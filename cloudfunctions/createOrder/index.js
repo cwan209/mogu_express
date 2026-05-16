@@ -14,6 +14,7 @@
 // Stub 模式下(HUEPAY_STUB=1)SDK 返回带 __stub 标记的 payParams,
 // 小程序识别后跳过 wx.requestPayment,直接调 _dev/simulatePay 模拟回调。
 
+const crypto = require('crypto');
 const cloud = require('wx-server-sdk');
 const huepay = require('./huepay');
 
@@ -21,11 +22,15 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 
+// 单 item 上限,防止用户构造 N 件商品撑爆事务锁数 + tx 超时
+const MAX_ITEMS_PER_ORDER = 20;
+
 function generateOrderNo() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
-  const ts = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-  return 'MG' + ts + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  // 8 字节 hex = 16 char,2^64 空间;碰撞概率比时间戳+random(1000) 低数个量级
+  return 'MG' + ts + crypto.randomBytes(3).toString('hex').toUpperCase();
 }
 
 function normalizeItem(it) {
@@ -41,6 +46,9 @@ exports.main = async (event) => {
   const { addressId, remark, requirePay = true } = event || {};
   const rawItems = (event?.items || []).map(normalizeItem);
   if (!rawItems.length) return { code: 1, message: 'items required' };
+  if (rawItems.length > MAX_ITEMS_PER_ORDER) {
+    return { code: 8, message: `单次下单最多 ${MAX_ITEMS_PER_ORDER} 件,请拆单` };
+  }
 
   const [userRes, addrRes] = await Promise.all([
     db.collection('users').where({ _openid: OPENID }).limit(1).get(),
@@ -52,7 +60,23 @@ exports.main = async (event) => {
     return { code: 3, message: '地址不存在' };
   }
 
-  const outTradeNo = 'TRADE' + Date.now() + Math.floor(Math.random() * 1000);
+  // 事务外 fast-path 库存预检 —— 秒杀场景下,售罄商品不进事务,省 mongo CPU。
+  // 预检有 race(N 人同时通过预检),但事务内 $inc + WriteConflict 重试兜底,
+  // 不会超卖。仅作为 fast-fail 优化。
+  const precheck = await Promise.all(rawItems.map(async (it) => {
+    const tiDoc = await db.collection('tuan_items').doc(it.tuanItemId).get().catch(() => null);
+    if (!tiDoc || !tiDoc.data) return { code: 4, message: `商品不存在:${it.tuanItemId}` };
+    const ti = tiDoc.data;
+    const stockLeft = (ti.stock || 0) - (ti.sold || 0);
+    if (stockLeft < it.quantity) {
+      return { code: 6, message: `商品库存不足(剩 ${stockLeft})` };
+    }
+    return null;
+  }));
+  const precheckFail = precheck.find(Boolean);
+  if (precheckFail) return precheckFail;
+
+  const outTradeNo = 'TRADE' + Date.now() + crypto.randomBytes(4).toString('hex').toUpperCase();
 
   // 事务扣库存 + 建订单
   const result = await db.runTransaction(async (transaction) => {
