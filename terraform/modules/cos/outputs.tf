@@ -17,7 +17,8 @@ output "public_url_prefix" {
 }
 
 output "access_key" {
-  value     = tencentcloud_cam_access_key.cos_writer.id
+  # tencentcloud_cam_access_key.id 是复合形式 "<uin>#<AKID>",拆出后段拿真正的 AK
+  value     = split("#", tencentcloud_cam_access_key.cos_writer.id)[1]
   sensitive = true
 }
 
