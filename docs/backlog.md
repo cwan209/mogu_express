@@ -25,30 +25,24 @@
 | 复制团购模板含价格 | 现有 `_admin/tuanCRUD copyFromTuan` |
 | 商品图片上传 | 现有 `_admin/uploadImage` |
 
-### Sprint 1(P0 核心,~3 天)— 业务最迫切
+### Sprint 1.1 ✅ 完成(2026-05-18)— 数据 schema + OAuth-only 清理
 
-> **驱动**:团购上线后立刻要用的功能,没有它生产跑不动。
+> 实施 spec: `docs/superpowers/specs/2026-05-18-sprint1.1-data-schema-oauth-cleanup-design.md`
+> 实施 plan: `docs/superpowers/plans/2026-05-18-sprint1.1-data-schema-oauth-cleanup.md`
+> 17 commits,test-shim 41 → 51 passing,deploy + E2E 全过。
 
-- [ ] **群号字段**(~1h)
-  - user schema 加 `groupId?: string`
-  - RegisterProfile 改为单字段"群号"(替代姓名+电话)— OAuth 已拿昵称头像
-  - admin OrderDetail 显示用户群号
-- [ ] **订单 tracking 备注**(~30min)
-  - order schema 加 `tracking: { weight?, courierNo? }`
-  - admin UI:跟 setShippingFee 同 Card,加 2 输入框
-  - 用户订单详情显示
+- [x] **群号字段**:user.groupId,RegisterProfile 单字段重写,admin 显示
+- [x] **订单 tracking**:order.tracking{weight,courierName,courierNo,setAt},新 _admin/updateTracking cf,用户端"物流信息"Card
+- [x] **订单买家/卖家备注**:order.notes{buyer,seller},新 _admin/updateOrderNotes cf,用户端"📣 团长留言"Card
+- [x] **商品 schema 扩展**:7 字段(brand/spec/basePrice/englishName/courierName/courierFactor/secondaryImages),admin ProductEdit + 联动 TuanEdit
+- [x] **OAuth-only 身份清理**:删 sendOtp/verifyOtp/Login.tsx,createOrder 去 name/phone check,userSnapshot 重定义为 {nickname,avatar,groupId},isRegistered 改用 groupId
+
+### Sprint 1.2(P0 核心,~1 天)— Excel 批量上传运费
+
 - [ ] **Excel 批量上传运费**(~1 天)
   - 后端 cf `_admin/uploadShippingFeesXlsx`:接 base64 xlsx → 用 `exceljs`(已有依赖)解析 → 按订单号 batch update `shippingFee` + `tracking`
   - admin 加批量上传 UI(选 xlsx → 预览匹配结果 → 确认)
-  - 模板格式:`订单号 | 实际总重量(kg) | 应补尾款(¥) | 快递单号`(待 clarify 列名)
-- [ ] **商品 schema 扩展**(~1 天)
-  - product 加字段:`brand`, `spec`, `basePrice`(正常收录价), `englishName`, `courierName`, `courierFactor`, `secondaryImages: [{url, caption}]`
-  - admin productCRUD UI 加输入框
-  - 创建 tuan 模板时自动调取(已有 copyFromTuan)
-- [ ] **订单买家/卖家备注**(~30min)
-  - order schema 加 `notes: { buyer?, seller? }`
-  - admin OrderDetail 编辑框
-  - 用户端订单详情显示 buyer 备注
+  - 模板格式:`订单号 | 实际总重量(kg) | 应补尾款(¥) | 快递单号`(已 clarify)
 
 ### Sprint 2(P1 增强,~4-5 天)— UX 提升
 
