@@ -70,20 +70,20 @@ export const useCartStore = create<CartState>()(
 
       clear: () => set({ items: [] }),
 
-      hydrateFromServer: (serverItems) =>
-        set({
-          items: serverItems.map((s) => ({
-            tuanItemId: s.tuanItemId,
-            productId: s.product?._id || s.tuanItemId,
-            tuanId: s.tuan?._id || '',
-            title: s.product?.title || '',
-            price: s.product?.price || 0,
-            coverFileId: s.product?.coverFileId || '',
-            quantity: s.quantity,
-            addedAt: s.addedAt,
-          })),
-          syncedFromServer: true,
-        }),
+      hydrateFromServer: (serverItems) => {
+        const mapped = serverItems.map((s) => ({
+          tuanItemId: s.tuanItemId,
+          productId: s.product?._id || s.tuanItemId,
+          tuanId: s.tuan?._id || '',
+          title: s.product?.title || '',
+          price: s.product?.price || 0,
+          coverFileId: s.product?.coverFileId || '',
+          quantity: s.quantity,
+          addedAt: s.addedAt,
+        }));
+        set({ items: mapped });
+        set({ syncedFromServer: true });
+      },
 
       totalQty: () => get().items.reduce((s, it) => s + it.quantity, 0),
       totalCents: () => get().items.reduce((s, it) => s + it.price * it.quantity, 0),
