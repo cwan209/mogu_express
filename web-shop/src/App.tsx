@@ -21,6 +21,7 @@ import RegisterProfile from './pages/RegisterProfile';
 import Poster from './pages/Poster';
 import OauthCallback from './pages/OauthCallback';
 import QrFallback from './pages/QrFallback';
+import PendingShipping from './pages/PendingShipping';
 
 function WithTabBar({ children }: { children: JSX.Element }) {
   return (
@@ -104,6 +105,7 @@ export default function App() {
       <Route path="/checkout" element={<Protected><Checkout /></Protected>} />
       <Route path="/pay-result/:orderId" element={<Protected><PayResult /></Protected>} />
       <Route path="/pay-shipping/:id" element={<Protected><PayShipping /></Protected>} />
+      <Route path="/pending-shipping" element={<Protected><WithTabBar><PendingShipping /></WithTabBar></Protected>} />
       <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />
       <Route path="/addresses" element={<Protected><Addresses /></Protected>} />
       <Route path="/coupons" element={<Protected><WithTabBar><MyCoupons /></WithTabBar></Protected>} />

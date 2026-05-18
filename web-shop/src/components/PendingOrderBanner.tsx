@@ -53,7 +53,7 @@ export default function PendingOrderBanner() {
           if (orders.length === 1) {
             nav(`/pay-shipping/${orders[0]._id}`);
           } else {
-            nav('/orders?filter=pending_shipping');
+            nav('/pending-shipping');
           }
         }}
       >
