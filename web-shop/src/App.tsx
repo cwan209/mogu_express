@@ -14,7 +14,6 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Profile from './pages/Profile';
 import Addresses from './pages/Addresses';
-import Login from './pages/Login';
 import RegisterProfile from './pages/RegisterProfile';
 import Poster from './pages/Poster';
 import OauthCallback from './pages/OauthCallback';
@@ -34,8 +33,7 @@ function Protected({ children }: { children: JSX.Element }) {
   const isRegistered = useAuthStore((s) => s.isRegistered);
   const loc = useLocation();
   if (!token) {
-    const ret = encodeURIComponent(loc.pathname + loc.search);
-    return <Navigate to={`/login?returnTo=${ret}`} replace />;
+    return <Navigate to="/qr-fallback" replace />;
   }
   if (!isRegistered && loc.pathname !== '/register-profile') {
     const ret = encodeURIComponent(loc.pathname + loc.search);
@@ -49,8 +47,8 @@ export default function App() {
   const loc = useLocation();
 
   useEffect(() => {
-    // 已经在 oauth-callback / qr-fallback / login 页 → 不重复跳
-    const skipPaths = ['/oauth-callback', '/qr-fallback', '/login'];
+    // 已经在 oauth-callback / qr-fallback 页 → 不重复跳
+    const skipPaths = ['/oauth-callback', '/qr-fallback'];
     if (skipPaths.includes(loc.pathname)) return;
     // 有 JWT → 跳过
     if (token) return;
@@ -61,7 +59,7 @@ export default function App() {
       // 在微信里 + 没登录 → 静默 OAuth
       redirectToWechatAuth(loc.pathname + loc.search);
     }
-    // 非微信 + 没登录 → 让 Protected 跳 /login (原逻辑不动)
+    // 非微信 + 没登录 → 让 Protected 跳 /qr-fallback
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc.pathname, token]);
 
@@ -74,7 +72,6 @@ export default function App() {
       {/* 游客可访问 — 二级页(无 TabBar) */}
       <Route path="/tuan/:id" element={<TuanDetail />} />
       <Route path="/product/:id" element={<ProductDetail />} />
-      <Route path="/login" element={<Login />} />
       <Route path="/register-profile" element={<RegisterProfile />} />
       <Route path="/share/poster/:type/:id" element={<Poster />} />
       <Route path="/oauth-callback" element={<OauthCallback />} />
