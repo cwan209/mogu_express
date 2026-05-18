@@ -929,6 +929,42 @@ test('processRefund reject:refund_requested → paid + 记录原因', async () =
   assert.equal(oSnap.data.refundRejectReason, '商品已备货');
 });
 
+test('_admin/updateTracking 写入 order.tracking', async () => {
+  reset({
+    orders: [{
+      _id: 'order_x', _openid: 'u1', orderNo: 'MG_X',
+      items: [], amount: 0, status: 'paid', payStatus: 'paid',
+      shipping: {}, createdAt: new Date(),
+    }],
+    admins: [{ openid: 'admin1', username: 'admin' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const r = await requireCf('_admin/updateTracking').main({
+    orderId: 'order_x',
+    weight: 2.5,
+    courierName: '顺丰',
+    courierNo: 'SF1234567890',
+  }, {});
+  assert.equal(r.code, 0);
+  // 验证 mongo 写入
+  const orderRes = await shim.database().collection('orders').doc('order_x').get();
+  assert.equal(orderRes.data.tracking.weight, 2.5);
+  assert.equal(orderRes.data.tracking.courierName, '顺丰');
+  assert.equal(orderRes.data.tracking.courierNo, 'SF1234567890');
+});
+
+test('_admin/updateTracking 非 admin 拒', async () => {
+  reset({
+    orders: [{ _id: 'order_x', _openid: 'u1', orderNo: 'MG_X', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, createdAt: new Date() }],
+    admins: [],
+  });
+  shim.__setContext({ OPENID: 'regular_user' });
+  const r = await requireCf('_admin/updateTracking').main({
+    orderId: 'order_x', weight: 1, courierName: '顺丰', courierNo: 'X',
+  }, {});
+  assert.equal(r.code, 403);
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {
