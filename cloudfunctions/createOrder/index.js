@@ -64,7 +64,7 @@ exports.main = async (event) => {
     db.collection('addresses').doc(addressId).get().catch(() => null),
   ]);
   const user = userRes.data && userRes.data[0];
-  if (!user || !user.name || !user.phone) return { code: 2, message: '请先完善姓名电话' };
+  if (!user) return { code: 401, message: 'not logged in' };
   if (!addrRes || !addrRes.data || addrRes.data._openid !== OPENID) {
     return { code: 3, message: '地址不存在' };
   }
@@ -136,7 +136,11 @@ exports.main = async (event) => {
       orderNo,
       outTradeNo,
       _openid: OPENID,
-      userSnapshot: { name: user.name, phone: user.phone },
+      userSnapshot: {
+        nickname: user.wechat?.nickname || '微信用户',
+        avatar: user.wechat?.avatar || null,
+        groupId: user.groupId || null,
+      },
       items: orderItems,
       amount,
       shipping: {
@@ -148,7 +152,7 @@ exports.main = async (event) => {
         state: addrRes.data.state,
         postcode: addrRes.data.postcode,
       },
-      remark: remark || '',
+      notes: { buyer: remark || '', seller: '' },
       status: requirePay ? 'pending_pay' : 'paid',
       payStatus: requirePay ? 'pending' : 'paid',
       paidAt: requirePay ? null : now,

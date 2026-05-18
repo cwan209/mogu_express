@@ -247,7 +247,7 @@ test('listProducts 按 tuanId 过滤', async () => {
 
 test('createOrder requirePay=true 返 pending_pay + stub payParams', async () => {
   reset({
-    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    users: [{ _openid: 'u1', wechat: { nickname: 'A', avatar: 'https://x.png', sex: 0, country: null, province: null, city: null, language: null }, groupId: 'g1', registeredAt: new Date() }],
     addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
       recipient: 'A', phone: '0400', line1: '1 St', line2: '',
       suburb: 'M', state: 'VIC', postcode: '3000' }],
@@ -267,7 +267,7 @@ test('createOrder requirePay=true 返 pending_pay + stub payParams', async () =>
 
 test('createOrder requirePay=false 直接 paid(legacy 兼容)', async () => {
   reset({
-    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    users: [{ _openid: 'u1', wechat: { nickname: 'A', avatar: 'https://x.png', sex: 0, country: null, province: null, city: null, language: null }, groupId: 'g1', registeredAt: new Date() }],
     addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
       recipient: 'A', phone: '0400', line1: '1 St', line2: '',
       suburb: 'M', state: 'VIC', postcode: '3000' }],
@@ -285,7 +285,7 @@ test('createOrder requirePay=false 直接 paid(legacy 兼容)', async () => {
 
 test('createOrder 库存不足时拒绝', async () => {
   reset({
-    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    users: [{ _openid: 'u1', wechat: { nickname: 'A', avatar: 'https://x.png', sex: 0, country: null, province: null, city: null, language: null }, groupId: 'g1', registeredAt: new Date() }],
     addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
       recipient: 'A', phone: '0400', line1: '1 St', line2: '',
       suburb: 'M', state: 'VIC', postcode: '3000' }],
@@ -303,7 +303,7 @@ test('createOrder 库存不足时拒绝', async () => {
 
 test('cancelOrder 仅 pending_pay 可取消(paid 拒绝)', async () => {
   reset({
-    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    users: [{ _openid: 'u1', wechat: { nickname: 'A', avatar: 'https://x.png', sex: 0, country: null, province: null, city: null, language: null }, groupId: 'g1', registeredAt: new Date() }],
     addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
       recipient: 'A', phone: '0400', line1: '1 St', line2: '',
       suburb: 'M', state: 'VIC', postcode: '3000' }],
@@ -319,9 +319,61 @@ test('cancelOrder 仅 pending_pay 可取消(paid 拒绝)', async () => {
   assert.equal(r2.code, 3);    // "仅待支付订单可取消"
 });
 
+test('createOrder userSnapshot 新形态 (nickname/avatar/groupId)', async () => {
+  reset({
+    users: [{ _openid: 'u1', wechat: { nickname: 'Luke', avatar: 'http://a.png', sex: 1, country: 'Australia', province: 'VIC', city: 'Melbourne', language: 'en' }, groupId: 'g1', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('createOrder').main({
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }],
+    addressId: 'addr1', requirePay: false,
+  }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.order.userSnapshot.nickname, 'Luke');
+  assert.equal(r.order.userSnapshot.avatar, 'http://a.png');
+  assert.equal(r.order.userSnapshot.groupId, 'g1');
+  assert.equal(r.order.userSnapshot.name, undefined, 'name should not be written');
+  assert.equal(r.order.userSnapshot.phone, undefined, 'phone should not be written');
+});
+
+test('createOrder remark → notes.buyer', async () => {
+  reset({
+    users: [{ _openid: 'u1', wechat: { nickname: 'A' }, groupId: 'g1', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('createOrder').main({
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }],
+    addressId: 'addr1', remark: '留门卫', requirePay: false,
+  }, {});
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.order.notes, { buyer: '留门卫', seller: '' });
+  assert.equal(r.order.remark, undefined, 'remark field no longer written');
+});
+
+test('createOrder 无 name/phone 也能下单 (OAuth 用户)', async () => {
+  reset({
+    users: [{ _openid: 'u1', wechat: { nickname: 'A' }, groupId: 'g1', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('createOrder').main({
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }],
+    addressId: 'addr1', requirePay: false,
+  }, {});
+  assert.equal(r.code, 0, `expected success, got: ${JSON.stringify(r)}`);
+});
+
 test('simulatePay 把 pending_pay 订单变 paid', async () => {
   reset({
-    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    users: [{ _openid: 'u1', wechat: { nickname: 'A', avatar: 'https://x.png', sex: 0, country: null, province: null, city: null, language: null }, groupId: 'g1', registeredAt: new Date() }],
     addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
       recipient: 'A', phone: '0400', line1: '1 St', line2: '',
       suburb: 'M', state: 'VIC', postcode: '3000' }],
@@ -339,7 +391,7 @@ test('simulatePay 把 pending_pay 订单变 paid', async () => {
 
 test('queryHuepayOrder 已支付订单返 source=local 短路', async () => {
   reset({
-    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    users: [{ _openid: 'u1', wechat: { nickname: 'A', avatar: 'https://x.png', sex: 0, country: null, province: null, city: null, language: null }, groupId: 'g1', registeredAt: new Date() }],
     addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
       recipient: 'A', phone: '0400', line1: '1 St', line2: '',
       suburb: 'M', state: 'VIC', postcode: '3000' }],
@@ -356,7 +408,7 @@ test('queryHuepayOrder 已支付订单返 source=local 短路', async () => {
 
 test('payCallback 幂等(已 paid 订单重放被忽略)', async () => {
   reset({
-    users: [{ _openid: 'u1', name: 'A', phone: '0400', registeredAt: new Date() }],
+    users: [{ _openid: 'u1', wechat: { nickname: 'A', avatar: 'https://x.png', sex: 0, country: null, province: null, city: null, language: null }, groupId: 'g1', registeredAt: new Date() }],
     addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
       recipient: 'A', phone: '0400', line1: '1 St', line2: '',
       suburb: 'M', state: 'VIC', postcode: '3000' }],
