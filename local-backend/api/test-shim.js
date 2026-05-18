@@ -965,6 +965,40 @@ test('_admin/updateTracking 非 admin 拒', async () => {
   assert.equal(r.code, 403);
 });
 
+test('_admin/updateOrderNotes 写入 order.notes.seller', async () => {
+  reset({
+    orders: [{
+      _id: 'order_x', _openid: 'u1', orderNo: 'MG_X',
+      items: [], amount: 0, status: 'paid', payStatus: 'paid',
+      shipping: {}, notes: { buyer: '原买家备注', seller: '' },
+      createdAt: new Date(),
+    }],
+    admins: [{ openid: 'admin1', username: 'admin' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const r = await requireCf('_admin/updateOrderNotes').main({
+    orderId: 'order_x',
+    sellerNote: '明天发货,VIP',
+  }, {});
+  assert.equal(r.code, 0);
+  const orderRes = await shim.database().collection('orders').doc('order_x').get();
+  assert.equal(orderRes.data.notes.seller, '明天发货,VIP');
+  assert.equal(orderRes.data.notes.buyer, '原买家备注', 'buyer note unchanged');
+});
+
+test('_admin/updateOrderNotes 超 500 字拒', async () => {
+  reset({
+    orders: [{ _id: 'order_x', _openid: 'u1', orderNo: 'MG_X', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, createdAt: new Date() }],
+    admins: [{ openid: 'admin1', username: 'admin' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const longText = 'x'.repeat(501);
+  const r = await requireCf('_admin/updateOrderNotes').main({
+    orderId: 'order_x', sellerNote: longText,
+  }, {});
+  assert.equal(r.code, 2);
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {
