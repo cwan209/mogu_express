@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Card, Descriptions, Tag, Table, Button, Space, message, Form, InputNumber } from 'antd';
+import { Card, Descriptions, Tag, Table, Button, Space, message, Form, InputNumber, Input, Select } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { Order, OrderItem, OrderStatus } from '../types';
-import { getOrder, markShipped, markCompleted, setShippingFee } from '../api/order';
+import { getOrder, markShipped, markCompleted, setShippingFee, updateTracking, updateOrderNotes } from '../api/order';
 import { formatAud } from '../utils/money';
+
+const COURIER_OPTIONS = ['顺丰', '中通', '圆通', '极兔', 'EMS', 'Australia Post', 'StarTrack', '其他'];
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pending_pay: 'orange',
@@ -76,8 +78,15 @@ export default function OrderDetail() {
         }
       >
         <Descriptions column={2} size="small">
-          <Descriptions.Item label="客户姓名">{order.userSnapshot.name}</Descriptions.Item>
-          <Descriptions.Item label="客户电话">{order.userSnapshot.phone}</Descriptions.Item>
+          <Descriptions.Item label="客户昵称">
+            {order.userSnapshot.nickname || order.userSnapshot.name || '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="客户群号">
+            {order.userSnapshot.groupId || '—'}
+          </Descriptions.Item>
+          {order.userSnapshot.phone && (
+            <Descriptions.Item label="客户电话(legacy)">{order.userSnapshot.phone}</Descriptions.Item>
+          )}
           <Descriptions.Item label="订单金额">{formatAud(order.amount)}</Descriptions.Item>
           <Descriptions.Item label="支付状态">{order.payStatus}</Descriptions.Item>
           <Descriptions.Item label="商户单号">{order.outTradeNo}</Descriptions.Item>
@@ -137,6 +146,83 @@ export default function OrderDetail() {
             </Form.Item>
           </Form>
         )}
+      </Card>
+
+      <Card title="物流跟踪" size="small">
+        {order.tracking?.courierNo ? (
+          <Space direction="vertical" size={8} style={{ display: 'flex' }}>
+            <div>重量:{order.tracking.weight} kg</div>
+            <div>快递:{order.tracking.courierName}</div>
+            <div>单号:{order.tracking.courierNo}</div>
+            <Form
+              layout="inline"
+              initialValues={{
+                weight: order.tracking.weight,
+                courierName: order.tracking.courierName,
+                courierNo: order.tracking.courierNo,
+              }}
+              onFinish={async (vals: { weight: number; courierName: string; courierNo: string }) => {
+                try {
+                  await updateTracking(order._id, vals);
+                  message.success('物流已更新');
+                  await load();
+                } catch (e: any) { message.error(e.message); }
+              }}
+            >
+              <Form.Item name="weight"><InputNumber min={0} step={0.1} addonAfter="kg" /></Form.Item>
+              <Form.Item name="courierName">
+                <Select options={COURIER_OPTIONS.map((c) => ({ label: c, value: c }))} style={{ width: 120 }} />
+              </Form.Item>
+              <Form.Item name="courierNo"><Input placeholder="单号" /></Form.Item>
+              <Form.Item><Button htmlType="submit">改物流</Button></Form.Item>
+            </Form>
+          </Space>
+        ) : (
+          <Form
+            layout="inline"
+            onFinish={async (vals: { weight: number; courierName: string; courierNo: string }) => {
+              try {
+                await updateTracking(order._id, vals);
+                message.success('物流已设置');
+                await load();
+              } catch (e: any) { message.error(e.message); }
+            }}
+          >
+            <Form.Item name="weight" rules={[{ required: true, message: '请输入重量' }]}>
+              <InputNumber min={0} step={0.1} addonAfter="kg" />
+            </Form.Item>
+            <Form.Item name="courierName" rules={[{ required: true, message: '请选快递' }]}>
+              <Select options={COURIER_OPTIONS.map((c) => ({ label: c, value: c }))} placeholder="快递公司" style={{ width: 140 }} />
+            </Form.Item>
+            <Form.Item name="courierNo" rules={[{ required: true, message: '请填单号' }]}>
+              <Input placeholder="快递单号" />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit">设置物流</Button>
+            </Form.Item>
+          </Form>
+        )}
+      </Card>
+
+      <Card title="卖家备注 (买家看得到)" size="small">
+        <Form
+          layout="vertical"
+          initialValues={{ sellerNote: order.notes?.seller || '' }}
+          onFinish={async (vals: { sellerNote: string }) => {
+            try {
+              await updateOrderNotes(order._id, vals.sellerNote);
+              message.success('备注已保存');
+              await load();
+            } catch (e: any) { message.error(e.message); }
+          }}
+        >
+          <Form.Item name="sellerNote">
+            <Input.TextArea rows={3} maxLength={500} showCount placeholder="留言给买家,如:明天发货" />
+          </Form.Item>
+          <Form.Item>
+            <Button htmlType="submit">保存备注</Button>
+          </Form.Item>
+        </Form>
       </Card>
 
       <Card title="收货信息" size="small">
