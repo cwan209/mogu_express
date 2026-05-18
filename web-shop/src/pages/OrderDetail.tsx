@@ -134,6 +134,47 @@ export default function OrderDetail() {
         </div>
       </div>
 
+      {/* 物流信息 Card — admin 设了 tracking 才显示 */}
+      {order.tracking && (order.tracking.weight != null || order.tracking.courierNo) && (
+        <div className="bg-white mt-2 p-4">
+          <div className="text-xs text-gray-500 mb-2">物流信息</div>
+          {order.tracking.weight != null && (
+            <div className="text-sm mb-1">
+              重量:{order.tracking.weight} kg
+            </div>
+          )}
+          {order.tracking.courierName && (
+            <div className="text-sm mb-1">
+              快递:{order.tracking.courierName}
+            </div>
+          )}
+          {order.tracking.courierNo && (
+            <div className="flex items-center text-sm">
+              <span>单号:{order.tracking.courierNo}</span>
+              <Button
+                size="mini"
+                fill="none"
+                onClick={() => {
+                  navigator.clipboard?.writeText(order.tracking!.courierNo!);
+                  Toast.show({ icon: 'success', content: '已复制' });
+                }}
+                style={{ marginLeft: 8 }}
+              >
+                复制
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 团长留言 Card — order.notes.seller 存在才显示 */}
+      {order.notes?.seller && (
+        <div className="bg-white mt-2 p-4" style={{ background: '#FFFBE6' }}>
+          <div className="text-xs text-gray-500 mb-2">📣 团长留言</div>
+          <div className="text-sm">{order.notes.seller}</div>
+        </div>
+      )}
+
       {/* 订单信息 */}
       <div className="bg-white mt-2 p-3 text-sm space-y-1">
         <div className="flex justify-between text-xs">
