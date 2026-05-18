@@ -19,8 +19,9 @@ export interface WxProfile {
 
 interface UserProfile {
   openid: string;
-  name?: string;
-  phone?: string;
+  name?: string;            // legacy,新代码不写
+  phone?: string;           // legacy
+  groupId?: string;         // OAuth 用户的群号
   /** 微信公众号 OAuth (snsapi_userinfo) 拉到的资料,null = 走 OTP 流程没有 */
   wechat?: WxProfile | null;
 }

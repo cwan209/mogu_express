@@ -97,11 +97,29 @@ export interface Order {
   orderNo: string;
   outTradeNo: string;
   openid: string;
-  userSnapshot: { name: string; phone: string };
+  userSnapshot: {
+    nickname?: string;
+    avatar?: string | null;
+    groupId?: string | null;
+    // legacy(老订单可能有)
+    name?: string;
+    phone?: string;
+  };
   items: OrderItem[];
   amount: number;
   shipping: ShippingAddress;
-  remark: string;
+  // remark 字段保留(legacy 显示用)
+  remark?: string;
+  notes?: {
+    buyer?: string;
+    seller?: string;
+  };
+  tracking?: {
+    weight?: number | null;
+    courierName?: string | null;
+    courierNo?: string | null;
+    setAt?: string | null;
+  };
   status: OrderStatus;
   payStatus: PayStatus;
   paidAt?: string;
