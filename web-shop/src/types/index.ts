@@ -149,3 +149,19 @@ export interface CartItem {
   quantity: number;
   addedAt: string;
 }
+
+export type CouponStatus = 'unused' | 'used' | 'expired';
+
+export interface Coupon {
+  _id: string;
+  _openid: string;
+  amount: number;        // cents
+  reason: string;
+  status: CouponStatus;
+  validFrom: string;
+  validTo: string;
+  usedOrderId?: string;
+  usedAt?: string;
+  createdBy: string;
+  createdAt: string;
+}

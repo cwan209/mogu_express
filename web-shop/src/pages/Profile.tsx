@@ -70,6 +70,13 @@ export default function Profile() {
         >
           我的订单
         </List.Item>
+        <List.Item
+          prefix={<span>🎟️</span>}
+          arrow={<RightOutline />}
+          onClick={() => nav('/coupons')}
+        >
+          我的优惠券
+        </List.Item>
       </List>
 
       <List className="mt-2" header="账号">

@@ -31,6 +31,7 @@ export async function createOrder(payload: {
   items: CreateOrderItem[];
   addressId: string;
   remark?: string;
+  couponId?: string;
 }): Promise<CreateOrderRes> {
   // 后端返 { order: {_id, orderNo, outTradeNo, amount, ...}, payParams }
   // 这里扁平化方便前端用

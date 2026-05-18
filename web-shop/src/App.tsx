@@ -15,6 +15,7 @@ import PayShipping from './pages/PayShipping';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Profile from './pages/Profile';
+import MyCoupons from './pages/MyCoupons';
 import Addresses from './pages/Addresses';
 import RegisterProfile from './pages/RegisterProfile';
 import Poster from './pages/Poster';
@@ -105,6 +106,7 @@ export default function App() {
       <Route path="/pay-shipping/:id" element={<Protected><PayShipping /></Protected>} />
       <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />
       <Route path="/addresses" element={<Protected><Addresses /></Protected>} />
+      <Route path="/coupons" element={<Protected><WithTabBar><MyCoupons /></WithTabBar></Protected>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
