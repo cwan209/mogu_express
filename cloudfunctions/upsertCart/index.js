@@ -19,6 +19,28 @@ exports.main = async (event) => {
   const existing = await col.where({ _openid: OPENID }).limit(1).get();
   const now = new Date();
 
+  // === replace 模式 (Sprint 2.3) ===
+  // event.items 完全覆盖现有 cart。客户端 cart 是 debounced 权威。
+  if (event?.replace && Array.isArray(event.items)) {
+    const items = event.items
+      .filter((x) => x && (x.tuanItemId || x.productId) && x.quantity > 0)
+      .map((x) => ({
+        tuanItemId: x.tuanItemId || x.productId,
+        quantity: x.quantity,
+        addedAt: x.addedAt ? new Date(x.addedAt) : now,
+      }));
+    if (existing.data && existing.data.length) {
+      await col.doc(existing.data[0]._id).update({
+        data: { items, updatedAt: now },
+      });
+    } else if (items.length) {
+      await col.add({
+        data: { _openid: OPENID, items, updatedAt: now },
+      });
+    }
+    return { code: 0, replaced: items.length };
+  }
+
   // === merge 模式 ===
   if (event?.merge && Array.isArray(event.items)) {
     const incoming = event.items

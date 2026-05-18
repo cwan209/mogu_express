@@ -1244,6 +1244,39 @@ test('_admin/announcementCRUD non-admin 拒 403', async () => {
   assert.equal(r.code, 403);
 });
 
+test('upsertCart replace 覆盖现有 items', async () => {
+  reset({
+    carts: [{ _id: 'cart_u1', _openid: 'u1', items: [
+      { tuanItemId: 'ti_OLD', quantity: 9, addedAt: new Date() },
+    ], updatedAt: new Date() }],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('upsertCart').main({
+    replace: true,
+    items: [
+      { tuanItemId: 'ti_A', quantity: 2, addedAt: '2026-05-18T00:00:00Z' },
+      { tuanItemId: 'ti_B', quantity: 3, addedAt: '2026-05-18T00:00:00Z' },
+    ],
+  }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.replaced, 2);
+  const cart = await shim.database().collection('carts').doc('cart_u1').get();
+  assert.equal(cart.data.items.length, 2);
+  assert.equal(cart.data.items[0].tuanItemId, 'ti_A');
+  assert.equal(cart.data.items[0].quantity, 2);
+  assert.ok(!cart.data.items.find((x) => x.tuanItemId === 'ti_OLD'), 'old item should be gone');
+});
+
+test('upsertCart replace 空 items + 无 cart doc 不建空 doc', async () => {
+  reset({ carts: [] });
+  shim.__setContext({ OPENID: 'u_new' });
+  const r = await requireCf('upsertCart').main({ replace: true, items: [] }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.replaced, 0);
+  const res = await shim.database().collection('carts').where({ _openid: 'u_new' }).limit(1).get();
+  assert.equal(res.data.length, 0, 'no cart doc should exist for empty replace on new user');
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {
