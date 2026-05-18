@@ -15,6 +15,46 @@ const _ = db.command;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mogu_express_dev_secret_REPLACE_ME_IN_PROD';
 
+// 7 个商品扩展字段(Sprint 1.1 A6):品牌/规格/底价/英文名/快递/快递系数/副图
+const EXTENDED_FIELDS = [
+  'brand', 'spec', 'basePrice', 'englishName',
+  'courierName', 'courierFactor', 'secondaryImages',
+];
+const COURIER_ENUM = ['顺丰', '中通', '圆通', '极兔', 'EMS', 'Australia Post', 'StarTrack', '其他'];
+
+function validateExtendedFields(data) {
+  if (!data) return null;
+  if (data.brand !== undefined && (typeof data.brand !== 'string' || data.brand.length > 50)) {
+    return 'brand must be string <= 50 chars';
+  }
+  if (data.spec !== undefined && (typeof data.spec !== 'string' || data.spec.length > 100)) {
+    return 'spec must be string <= 100 chars';
+  }
+  if (data.basePrice !== undefined && (typeof data.basePrice !== 'number' || data.basePrice < 0)) {
+    return 'basePrice must be number >= 0 (cents)';
+  }
+  if (data.englishName !== undefined && (typeof data.englishName !== 'string' || data.englishName.length > 200)) {
+    return 'englishName must be string <= 200 chars';
+  }
+  if (data.courierName !== undefined && data.courierName !== '' && !COURIER_ENUM.includes(data.courierName)) {
+    return `courierName not in enum: ${COURIER_ENUM.join('/')}`;
+  }
+  if (data.courierFactor !== undefined) {
+    if (typeof data.courierFactor !== 'number' || data.courierFactor < 0 || data.courierFactor > 10) {
+      return 'courierFactor must be number 0..10';
+    }
+  }
+  if (data.secondaryImages !== undefined) {
+    if (!Array.isArray(data.secondaryImages)) return 'secondaryImages must be array';
+    for (const img of data.secondaryImages) {
+      if (!img || typeof img.url !== 'string' || typeof img.caption !== 'string') {
+        return 'secondaryImages items must have {url, caption}';
+      }
+    }
+  }
+  return null;
+}
+
 async function requireAdmin(event) {
   if (event && event.token) {
     try { return { source: 'web', admin: verify(event.token, JWT_SECRET) }; }
@@ -102,6 +142,9 @@ async function list({ tuanId, categoryId, page = 1, pageSize = 50 }) {
 async function create({ payload }) {
   if (!payload || !payload.title) return { code: 1, message: 'title required' };
 
+  const extErr = validateExtendedFields(payload);
+  if (extErr) return { code: 1, message: extErr };
+
   const now = new Date();
   const catalog = {
     title: payload.title,
@@ -112,6 +155,9 @@ async function create({ payload }) {
     createdAt: now,
     updatedAt: now,
   };
+  for (const k of EXTENDED_FIELDS) {
+    if (k in payload) catalog[k] = payload[k];
+  }
   const pAdd = await db.collection('products').add({ data: catalog });
   const productId = pAdd._id;
 
@@ -150,8 +196,14 @@ async function update({ id, patch }) {
   const current = await db.collection('products').doc(id).get().catch(() => null);
   if (!current || !current.data) return { code: 2, message: 'not found' };
 
+  const extErr = validateExtendedFields(patch);
+  if (extErr) return { code: 1, message: extErr };
+
   // 只接受 catalog 字段;tuan-specific 字段被忽略(走 tuanItemCRUD)
-  const allowed = ['title', 'description', 'coverFileId', 'imageFileIds', 'categoryIds'];
+  const allowed = [
+    'title', 'description', 'coverFileId', 'imageFileIds', 'categoryIds',
+    ...EXTENDED_FIELDS,
+  ];
   const data = { updatedAt: new Date() };
   for (const k of allowed) if (k in patch) data[k] = patch[k];
 

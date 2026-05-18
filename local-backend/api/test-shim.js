@@ -558,6 +558,60 @@ test('_admin/productCRUD create section 空串存 null', async () => {
   assert.equal(found.section, null);
 });
 
+test('_admin/productCRUD create 含扩展字段 (brand/spec/basePrice 等)', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/productCRUD').main({
+    action: 'create',
+    token,
+    payload: {
+      title: '澳洲牛肉 500g',
+      brand: 'Coles',
+      spec: '500g/盒',
+      basePrice: 4500,
+      englishName: 'Australian Beef 500g',
+      courierName: '顺丰',
+      courierFactor: 1.5,
+      secondaryImages: [
+        { url: 'http://x.png', caption: '正面' },
+        { url: 'http://y.png', caption: '背面营养表' },
+      ],
+    },
+  });
+  assert.equal(r.code, 0);
+  assert.ok(r._id);
+  // catalog list 模式返回原始 product 文档
+  const list = await requireCf('_admin/productCRUD').main({ action: 'list', token });
+  const p = list.items.find((x) => x._id === r._id);
+  assert.ok(p, 'new product should be in catalog list');
+  assert.equal(p.brand, 'Coles');
+  assert.equal(p.spec, '500g/盒');
+  assert.equal(p.basePrice, 4500);
+  assert.equal(p.englishName, 'Australian Beef 500g');
+  assert.equal(p.courierName, '顺丰');
+  assert.equal(p.courierFactor, 1.5);
+  assert.equal(p.secondaryImages.length, 2);
+});
+
+test('_admin/productCRUD create courierFactor 越界拒', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/productCRUD').main({
+    action: 'create',
+    token,
+    payload: { title: 'X', courierFactor: 99 },
+  });
+  assert.notEqual(r.code, 0, `expected error for courierFactor=99, got: ${JSON.stringify(r)}`);
+});
+
 test('_admin/tuanItemCRUD update section 能清空(传空串→null)', async () => {
   const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
   reset({
