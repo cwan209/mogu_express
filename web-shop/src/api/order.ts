@@ -76,6 +76,28 @@ export async function mergeCart(
   return callCloud('upsertCart', { items, merge: true });
 }
 
+/** 拉服务端 cart 的 raw items(tuanItemId/quantity/addedAt)— 用于 login 后覆盖 local */
+export interface ServerCartItem {
+  tuanItemId: string;
+  quantity: number;
+  addedAt: string;
+  /** server 还会返 product/tuan join,我们 sync 时不关心 */
+  product?: { _id?: string; title?: string; coverFileId?: string; price?: number };
+  tuan?: any;
+}
+
+export async function getCart(): Promise<ServerCartItem[]> {
+  const r = await callCloud<{ items: ServerCartItem[] }>('getCart', {});
+  return r.items || [];
+}
+
+/** 用本地 items 完全覆盖服务端 cart (Sprint 2-3 debounced sync) */
+export async function replaceCart(
+  items: { tuanItemId: string; quantity: number; addedAt?: string }[],
+): Promise<{ code: 0 }> {
+  return callCloud('upsertCart', { items, replace: true });
+}
+
 export interface PendingOrder {
   _id: string;
   orderNo: string;

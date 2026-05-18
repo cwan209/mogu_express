@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/auth';
+import { useCartStore } from './store/cart';
+import { getCart } from './api/order';
 import { isWechatBrowser, redirectToWechatAuth } from './utils/wechat';
 import AppTabBar from './components/AppTabBar';
 import Home from './pages/Home';
@@ -44,6 +46,7 @@ function Protected({ children }: { children: JSX.Element }) {
 
 export default function App() {
   const token = useAuthStore((s) => s.token);
+  const hydrateCart = useCartStore((s) => s.hydrateFromServer);
   const loc = useLocation();
 
   useEffect(() => {
@@ -62,6 +65,21 @@ export default function App() {
     // 非微信 + 没登录 → 让 Protected 跳 /qr-fallback
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc.pathname, token]);
+
+  // Cart server sync: token 0→1 时拉服务端 cart 覆盖 local;logout 时重置 synced flag
+  useEffect(() => {
+    if (!token) {
+      // logout → 后续 cart 改动不再 push 到 server(本地 cart 保留作 guest cart)
+      useCartStore.setState({ syncedFromServer: false });
+      return;
+    }
+    getCart()
+      .then(hydrateCart)
+      .catch(() => {
+        // 拉不到(网络/auth)— 不阻塞 app,本地 cart 照常用
+        // syncedFromServer 仍为 false,下次用户操作 cart 时不会乱推
+      });
+  }, [token, hydrateCart]);
 
   return (
     <Routes>

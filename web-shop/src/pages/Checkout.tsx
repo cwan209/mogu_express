@@ -5,7 +5,7 @@ import {
 } from 'antd-mobile';
 import { RightOutline, LocationOutline } from 'antd-mobile-icons';
 import { listAddresses, type Address } from '../api/address';
-import { createOrder, mergeCart } from '../api/order';
+import { createOrder } from '../api/order';
 import { useCartStore } from '../store/cart';
 import { formatCny } from '../utils/money';
 
@@ -20,19 +20,9 @@ export default function Checkout() {
   const [picked, setPicked] = useState<Address | null>(null);
   const [remark, setRemark] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [mergedOnce, setMergedOnce] = useState(false);
 
-  // 登录后第一次进 checkout 时把 localStorage cart merge 到服务端
-  useEffect(() => {
-    if (!mergedOnce && items.length > 0) {
-      mergeCart(items.map((it) => ({
-        tuanItemId: it.tuanItemId,
-        quantity: it.quantity,
-        addedAt: it.addedAt,
-      }))).catch(() => {});
-      setMergedOnce(true);
-    }
-  }, [mergedOnce, items]);
+  // cart sync 已由 App.tsx 在 login 时统一处理(getCart 覆盖 local + debounced replaceCart push)
+  // 不再需要 checkout 时 mergeCart
 
   // 加载地址列表 + 默认选中
   const loadAddresses = async () => {
