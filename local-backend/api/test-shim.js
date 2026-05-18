@@ -11,6 +11,7 @@
 const path = require('path');
 const Module = require('module');
 const assert = require('assert/strict');
+const ExcelJS = require('exceljs');
 
 // ---- 1. 把 require('wx-server-sdk') 重定向到 shim,fallback 到 api/node_modules ----
 const SHIM_PATH = path.resolve(__dirname, 'src/shim/index.js');
@@ -187,6 +188,16 @@ function reset(extra = {}) {
   const seed = { ...freshSeed(), ...extra };
   shim.__setMongo(mockClient, mkMockDb(seed));
   return seed;
+}
+
+async function makeTestXlsx(rows) {
+  // rows: [[订单号, 重量, 尾款元, 单号], ...]
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('运费');
+  ws.addRow(['订单号', '实际总重量', '应补尾款', '快递单号']);
+  rows.forEach((r) => ws.addRow(r));
+  const buf = await wb.xlsx.writeBuffer();
+  return Buffer.from(buf).toString('base64');
 }
 
 // ════════════════════════════════════════════
@@ -1051,6 +1062,93 @@ test('_admin/updateOrderNotes 超 500 字拒', async () => {
     orderId: 'order_x', sellerNote: longText,
   }, {});
   assert.equal(r.code, 2);
+});
+
+test('_admin/uploadShippingFeesXlsx dryRun 预览覆盖 5 种状态', async () => {
+  reset({
+    orders: [
+      { _id: 'ord_A', orderNo: 'MG_A', _openid: 'u1', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, createdAt: new Date() },
+      { _id: 'ord_B', orderNo: 'MG_B', _openid: 'u1', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, shippingFee: { amount: 4000, payStatus: 'paid', paidAt: new Date(), outTradeNo: 'SHIP_OLD', setAt: new Date() }, createdAt: new Date() },
+    ],
+    admins: [{ openid: 'admin1', username: 'admin' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const xlsxBase64 = await makeTestXlsx([
+    ['MG_A', 2.5, 35.00, 'SF1'],
+    ['MG_NONEXIST', 1.0, 10.00, 'SF2'],
+    ['MG_B', 1.5, 40.00, 'SF3'],
+    ['MG_A', 3.0, 50.00, 'SF4'],
+    ['', 1, 1, 'X'],
+  ]);
+  const r = await requireCf('_admin/uploadShippingFeesXlsx').main({ xlsxBase64, dryRun: true }, {});
+  assert.equal(r.code, 0, `expected code 0, got ${JSON.stringify(r)}`);
+  assert.equal(r.rows.length, 5);
+  assert.equal(r.rows[0].status, 'matched');
+  assert.equal(r.rows[1].status, 'not_found');
+  assert.equal(r.rows[2].status, 'already_paid');
+  assert.equal(r.rows[3].status, 'duplicate_in_file');
+  assert.equal(r.rows[4].status, 'invalid');
+  assert.equal(r.summary.matched, 1);
+  assert.equal(r.summary.notFound, 1);
+  assert.equal(r.summary.alreadyPaid, 1);
+  assert.equal(r.summary.duplicateInFile, 1);
+  assert.equal(r.summary.invalid, 1);
+  assert.equal(r.summary.applied, undefined, 'dryRun should not commit');
+  const ordA = await shim.database().collection('orders').doc('ord_A').get();
+  assert.equal(ordA.data.shippingFee, undefined, 'ord_A should not have shippingFee after dryRun');
+});
+
+test('_admin/uploadShippingFeesXlsx apply 只写 matched 行', async () => {
+  reset({
+    orders: [
+      { _id: 'ord_A', orderNo: 'MG_A', _openid: 'u1', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, createdAt: new Date() },
+      { _id: 'ord_B', orderNo: 'MG_B', _openid: 'u1', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, shippingFee: { amount: 4000, payStatus: 'paid', paidAt: new Date(), outTradeNo: 'SHIP_OLD', setAt: new Date() }, createdAt: new Date() },
+    ],
+    admins: [{ openid: 'admin1', username: 'admin' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const xlsxBase64 = await makeTestXlsx([
+    ['MG_A', 2.5, 35.00, 'SF1'],
+    ['MG_NONEXIST', 1.0, 10.00, 'SF2'],
+    ['MG_B', 1.5, 40.00, 'SF3'],
+  ]);
+  const r = await requireCf('_admin/uploadShippingFeesXlsx').main({ xlsxBase64, dryRun: false }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.summary.applied, 1);
+  assert.equal(r.summary.matched, 1);
+  const ordA = await shim.database().collection('orders').doc('ord_A').get();
+  assert.equal(ordA.data.shippingFee.amount, 3500, '35 元 → 3500 cents');
+  assert.equal(ordA.data.shippingFee.payStatus, 'pending');
+  assert.ok(ordA.data.shippingFee.outTradeNo.startsWith('SHIP'));
+  assert.equal(ordA.data.tracking.weight, 2.5);
+  assert.equal(ordA.data.tracking.courierName, null, 'courierName 留空');
+  assert.equal(ordA.data.tracking.courierNo, 'SF1');
+  const ordB = await shim.database().collection('orders').doc('ord_B').get();
+  assert.equal(ordB.data.shippingFee.outTradeNo, 'SHIP_OLD', 'paid order should not be modified');
+});
+
+test('_admin/uploadShippingFeesXlsx 非 admin 拒', async () => {
+  reset({
+    orders: [{ _id: 'ord_A', orderNo: 'MG_A', _openid: 'u1', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, createdAt: new Date() }],
+    admins: [],
+  });
+  shim.__setContext({ OPENID: 'not_admin' });
+  const xlsxBase64 = await makeTestXlsx([['MG_A', 1, 10, 'X']]);
+  const r = await requireCf('_admin/uploadShippingFeesXlsx').main({ xlsxBase64, dryRun: true }, {});
+  assert.equal(r.code, 403);
+});
+
+test('_admin/uploadShippingFeesXlsx header 错乱拒', async () => {
+  reset({ admins: [{ openid: 'admin1', username: 'admin' }] });
+  shim.__setContext({ OPENID: 'admin1' });
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('运费');
+  ws.addRow(['订单号', '实际总重量', '应补尾款']);   // 缺"快递单号"列
+  ws.addRow(['MG_X', 1, 10]);
+  const buf = await wb.xlsx.writeBuffer();
+  const xlsxBase64 = Buffer.from(buf).toString('base64');
+  const r = await requireCf('_admin/uploadShippingFeesXlsx').main({ xlsxBase64, dryRun: true }, {});
+  assert.equal(r.code, 2, `expected code 2 for bad header, got: ${JSON.stringify(r)}`);
 });
 
 // ---- 5. Run ----
