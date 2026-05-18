@@ -159,3 +159,46 @@ async function mockExportOrders(filter?: any): Promise<ExportResult> {
   const url = URL.createObjectURL(blob);
   return { code: 0, filename, count: orders.length, downloadUrl: url };
 }
+
+// =========== 批量运费上传 (Sprint 1.2) ===========
+
+export type BatchShippingStatus =
+  | 'matched'
+  | 'not_found'
+  | 'already_paid'
+  | 'invalid'
+  | 'duplicate_in_file';
+
+export interface BatchShippingRow {
+  row: number;
+  orderNo: string;
+  weight: number | null;
+  fee: number | null;      // cents
+  courierNo: string | null;
+  status: BatchShippingStatus;
+  message?: string;
+  before?: {
+    shippingFee?: { amount?: number; payStatus?: string; outTradeNo?: string };
+    tracking?: { weight?: number; courierName?: string | null; courierNo?: string };
+  };
+}
+
+export interface BatchShippingResp {
+  code: 0;
+  rows: BatchShippingRow[];
+  summary: {
+    matched: number;
+    notFound: number;
+    alreadyPaid: number;
+    invalid: number;
+    duplicateInFile: number;
+    applied?: number;
+  };
+}
+
+export async function uploadShippingFeesXlsx(
+  xlsxBase64: string,
+  dryRun: boolean,
+): Promise<BatchShippingResp> {
+  return callCloud<BatchShippingResp>('_admin/uploadShippingFeesXlsx', { xlsxBase64, dryRun });
+}
