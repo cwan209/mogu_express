@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Button, Card, Space, Table, Tag, message, Select, Input, DatePicker, Modal } from 'antd';
-import { DownloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { Dayjs } from 'dayjs';
 import type { Order, OrderStatus, Tuan } from '../types';
 import { listOrders, markShipped, exportOrders, processRefund } from '../api/order';
 import { listTuans } from '../api/tuan';
 import { formatAud } from '../utils/money';
+import BatchShippingFeeModal from './BatchShippingFeeModal';
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pending_pay: 'orange',
@@ -108,6 +109,8 @@ export default function Orders() {
   };
 
   const [exporting, setExporting] = useState(false);
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+
   const onExport = async () => {
     setExporting(true);
     try {
@@ -155,6 +158,10 @@ export default function Orders() {
       title="订单管理"
       extra={
         <Space>
+          <Button
+            icon={<UploadOutlined />}
+            onClick={() => setBatchModalOpen(true)}
+          >Excel 批量运费</Button>
           <Button
             type="primary"
             icon={<DownloadOutlined />}
@@ -259,6 +266,12 @@ export default function Orders() {
           },
         ]}
         scroll={{ x: 1200 }}
+      />
+
+      <BatchShippingFeeModal
+        open={batchModalOpen}
+        onClose={() => setBatchModalOpen(false)}
+        onApplied={load}
       />
 
       <Modal
