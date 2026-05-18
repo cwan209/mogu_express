@@ -101,6 +101,16 @@ export interface Category {
   createdAt: string;
 }
 
+export interface Announcement {
+  _id: string;
+  image: string;
+  link: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface Participant {
   // 脱敏过的公开快照,不暴露 openid
   id: string;

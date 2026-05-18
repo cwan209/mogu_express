@@ -6,6 +6,7 @@ import TuanEdit from './pages/TuanEdit';
 import Products from './pages/Products';
 import ProductEdit from './pages/ProductEdit';
 import Categories from './pages/Categories';
+import Announcements from './pages/Announcements';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Settings from './pages/Settings';
@@ -34,6 +35,8 @@ export default function App() {
         <Route path="/products/:id" element={<ProductEdit />} />
 
         <Route path="/categories" element={<Categories />} />
+
+        <Route path="/announcements" element={<Announcements />} />
 
         <Route path="/orders" element={<Orders />} />
         <Route path="/orders/:id" element={<OrderDetail />} />

@@ -7,7 +7,7 @@
 
 import { callCloud, USE_MOCK } from './client';
 
-export type UploadPurpose = 'tuan_cover' | 'product_cover' | 'product_image';
+export type UploadPurpose = 'tuan_cover' | 'product_cover' | 'product_image' | 'announcement';
 
 export const MAX_SIZE_BYTES = 3 * 1024 * 1024;
 export const ALLOWED_MIMES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];

@@ -6,11 +6,12 @@ const { Header, Sider, Content } = Layout;
 
 // 将 /tuans/xxx、/products/yyy 等子路由 映射到顶层菜单 key
 function matchTopKey(pathname: string): string {
-  if (pathname.startsWith('/tuans'))      return '/tuans';
-  if (pathname.startsWith('/products'))   return '/products';
-  if (pathname.startsWith('/categories')) return '/categories';
-  if (pathname.startsWith('/orders'))     return '/orders';
-  if (pathname.startsWith('/settings'))   return '/settings';
+  if (pathname.startsWith('/tuans'))         return '/tuans';
+  if (pathname.startsWith('/products'))      return '/products';
+  if (pathname.startsWith('/categories'))    return '/categories';
+  if (pathname.startsWith('/announcements')) return '/announcements';
+  if (pathname.startsWith('/orders'))        return '/orders';
+  if (pathname.startsWith('/settings'))      return '/settings';
   return '/dashboard';
 }
 
@@ -22,12 +23,13 @@ export default function AppShell() {
   const { token } = theme.useToken();
 
   const menuItems = [
-    { key: '/dashboard', label: '仪表盘' },
-    { key: '/tuans',     label: '团管理' },
-    { key: '/products',  label: '商品' },
-    { key: '/categories',label: '分类' },
-    { key: '/orders',    label: '订单' },
-    { key: '/settings',  label: '站点设置' },
+    { key: '/dashboard',     label: '仪表盘' },
+    { key: '/tuans',         label: '团管理' },
+    { key: '/products',      label: '商品' },
+    { key: '/categories',    label: '分类' },
+    { key: '/announcements', label: 'Banner' },
+    { key: '/orders',        label: '订单' },
+    { key: '/settings',      label: '站点设置' },
   ];
 
   return (
