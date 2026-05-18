@@ -125,7 +125,7 @@ exports.main = async (event) => {
   let userInfo = { name: null, phone: null, wechat: null };
   if (existing.data && existing.data.length) {
     const u = existing.data[0];
-    isRegistered = Boolean(u.name);
+    isRegistered = Boolean(u.groupId);
     // 优先用最新的微信资料,没有就保留旧的
     const wechat = wechatProfile || u.wechat || null;
     userInfo = { name: u.name || null, phone: u.phone || null, wechat };
