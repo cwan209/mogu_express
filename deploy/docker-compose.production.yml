@@ -64,18 +64,9 @@ services:
       S3_AUTO_CREATE_BUCKET: "false"
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
       JWT_SECRET: ${JWT_SECRET}
-      BUMP_EXPIRED_TUANS: "0"
-      # 公众号 OAuth (wxLogin 云函数用) — 留空时前端 bootstrap 静默 skip,走 OTP 兜底
+      # 公众号 OAuth (wxLogin 云函数用) — staging 用测试号,prod 用海外认证服务号
       WECHAT_APP_ID: ${WECHAT_APP_ID:-}
       WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:-}
-      # OTP 短信(留空走 stub 模式,生产强烈建议配真实)
-      SMS_STUB: ${SMS_STUB:-1}
-      TENCENT_SMS_SECRET_ID: ${TENCENT_SMS_SECRET_ID:-}
-      TENCENT_SMS_SECRET_KEY: ${TENCENT_SMS_SECRET_KEY:-}
-      TENCENT_SMS_APP_ID: ${TENCENT_SMS_APP_ID:-}
-      TENCENT_SMS_SIGN: ${TENCENT_SMS_SIGN:-}
-      TENCENT_SMS_TEMPLATE_OTP: ${TENCENT_SMS_TEMPLATE_OTP:-}
-      TENCENT_SMS_REGION: ${TENCENT_SMS_REGION:-ap-guangzhou}
       # HuePay
       HUEPAY_STUB: ${HUEPAY_STUB:-1}
       HUEPAY_API_BASE: ${HUEPAY_API_BASE:-}
