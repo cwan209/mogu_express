@@ -37,12 +37,16 @@
 - [x] **商品 schema 扩展**:7 字段(brand/spec/basePrice/englishName/courierName/courierFactor/secondaryImages),admin ProductEdit + 联动 TuanEdit
 - [x] **OAuth-only 身份清理**:删 sendOtp/verifyOtp/Login.tsx,createOrder 去 name/phone check,userSnapshot 重定义为 {nickname,avatar,groupId},isRegistered 改用 groupId
 
-### Sprint 1.2(P0 核心,~1 天)— Excel 批量上传运费
+### Sprint 1.2 ✅ 完成(2026-05-18)— Excel 批量上传运费
 
-- [ ] **Excel 批量上传运费**(~1 天)
-  - 后端 cf `_admin/uploadShippingFeesXlsx`:接 base64 xlsx → 用 `exceljs`(已有依赖)解析 → 按订单号 batch update `shippingFee` + `tracking`
-  - admin 加批量上传 UI(选 xlsx → 预览匹配结果 → 确认)
-  - 模板格式:`订单号 | 实际总重量(kg) | 应补尾款(¥) | 快递单号`(已 clarify)
+> 实施 spec: `docs/superpowers/specs/2026-05-18-sprint1.2-excel-batch-shipping-fees-design.md`
+> 实施 plan: `docs/superpowers/plans/2026-05-18-sprint1.2-excel-batch-shipping-fees.md`
+> 7 commits(`b56c91b` → `8b097f0`),test-shim 51 → 56 passing,deploy + E2E 全过(`MG2026051820003932AA07` 实测保留 `courierName: 顺丰`)。
+
+- [x] **后端 cf `_admin/uploadShippingFeesXlsx`**:base64 xlsx → exceljs 解析 → 5 种状态(matched/not_found/already_paid/invalid/duplicate_in_file/apply_failed)+ dryRun bool 双相(预览 / 应用)
+- [x] **admin UI**:Orders 页顶部 "Excel 批量运费" 按钮 → BatchShippingFeeModal 3-phase(pick / preview / result),含下载模板按钮 + before 列(显示会被覆盖的数据)
+- [x] **模板格式**:`订单号 | 实际总重量(kg) | 应补尾款(¥) | 快递单号`,4 列 header 严格匹配(顺序可变),500 行/2MB 上限
+- [x] **加固**:per-row try/catch(部分失败可见)、`tracking.courierName` 保留既有值(不被 null 清空)、audit log 含 admin/total/applied/failed/orderNos(前 50)
 
 ### Sprint 2(P1 增强,~4-5 天)— UX 提升
 
