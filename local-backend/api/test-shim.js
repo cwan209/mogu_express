@@ -716,6 +716,71 @@ test('_admin/tuanItemCRUD copyFromTuan 跳过已有同 productId', async () => {
   assert.equal(px.price, 150);
 });
 
+test('_admin/tuanItemCRUD create with tags + list 返回 tags', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    products: [
+      { _id: 'pnew', title: 'PNew', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+    ],
+    tuan_items: [],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/tuanItemCRUD').main({
+    action: 'create', token,
+    tuanId: 'tuan_001', productId: 'pnew',
+    price: 500, stock: 20, sort: 5,
+    tags: ['新品', '过敏', '易变形'],
+  });
+  assert.equal(r.code, 0);
+  const list = await requireCf('_admin/tuanItemCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
+  const found = list.items.find((p) => p.productId === 'pnew');
+  assert.deepEqual(found.tags, ['新品', '过敏', '易变形']);
+});
+
+test('_admin/tuanItemCRUD update tags: dedupe + trim + cap 10 + 过滤超长', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    products: [
+      { _id: 'px', title: 'X', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' },
+    ],
+    tuan_items: [
+      { _id: 'ti_px', tuanId: 'tuan_001', productId: 'px', price: 100, stock: 10, sold: 0, sort: 1, section: null, tags: [], participantCount: 0 },
+    ],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+
+  // 准备 12 条 tags + 重复 + 空串 + 1 条超长(21字)
+  const longTag = 'x'.repeat(21);
+  const raw = [
+    '新品', '  新品  ',  // 重复 (trim 后)
+    '过敏', '',          // 空串
+    longTag,             // 超长被过滤
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',  // 一堆要被 cap 到 10
+  ];
+  const r = await requireCf('_admin/tuanItemCRUD').main({
+    action: 'update', token, id: 'ti_px', patch: { tags: raw },
+  });
+  assert.equal(r.code, 0);
+
+  const list = await requireCf('_admin/tuanItemCRUD').main({ action: 'list', token, tuanId: 'tuan_001' });
+  const found = list.items.find((p) => p._id === 'ti_px');
+  // cap 在 10 条
+  assert.equal(found.tags.length, 10);
+  // 去重 + trim:'新品' 只 1 条
+  assert.equal(found.tags.filter((t) => t === '新品').length, 1);
+  // 空串不应进入
+  assert.equal(found.tags.includes(''), false);
+  // 超长 (21 char) 被过滤
+  assert.equal(found.tags.includes(longTag), false);
+  // 前几条按顺序
+  assert.equal(found.tags[0], '新品');
+  assert.equal(found.tags[1], '过敏');
+});
+
 // ── 地址校验(addressValidate.js)— 面向中国大陆用户 ──
 
 test('addressValidate 通过合法中国地址', () => {

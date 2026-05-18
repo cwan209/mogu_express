@@ -16,6 +16,21 @@ const _ = db.command;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mogu_express_dev_secret_REPLACE_ME_IN_PROD';
 
+// 规范化 tags 数组:trim、去空、长度≤20、去重、最多 10 条
+function normTags(raw) {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const t of raw) {
+    const s = (t == null ? '' : String(t)).trim();
+    if (!s || s.length > 20 || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
 async function requireAdmin(event) {
   if (event && event.token) {
     try { return verify(event.token, JWT_SECRET); }
@@ -71,13 +86,14 @@ async function list({ tuanId }) {
       sold: ti.sold || 0,
       sort: ti.sort,
       section: ti.section || null,
+      tags: ti.tags || [],
       participantCount: ti.participantCount || 0,
     };
   });
   return { code: 0, items: joined };
 }
 
-async function create({ tuanId, productId, price, stock, sort, section }) {
+async function create({ tuanId, productId, price, stock, sort, section, tags }) {
   if (!tuanId || !productId) return { code: 1, message: 'tuanId + productId required' };
 
   const tuan = await db.collection('tuans').doc(tuanId).get().catch(() => null);
@@ -101,6 +117,7 @@ async function create({ tuanId, productId, price, stock, sort, section }) {
     sold: 0,
     sort: Number(sort) | 0,
     section: rawSection || null,
+    tags: normTags(tags),
     participantCount: 0,
     createdAt: now,
     updatedAt: now,
@@ -127,13 +144,15 @@ async function update({ id, patch }) {
     }
   }
 
-  const allowed = ['price', 'stock', 'sort', 'section'];
+  const allowed = ['price', 'stock', 'sort', 'section', 'tags'];
   const data = { updatedAt: new Date() };
   for (const k of allowed) {
     if (!(k in patch)) continue;
     if (k === 'section') {
       const s = (patch.section || '').trim();
       data.section = s || null;
+    } else if (k === 'tags') {
+      data.tags = normTags(patch.tags);
     } else {
       data[k] = Number(patch[k]) | 0;
     }
@@ -188,6 +207,7 @@ async function copyFromTuan({ sourceTuanId, targetTuanId }) {
         sold: 0,
         sort: ti.sort,
         section: ti.section || null,
+        tags: ti.tags || [],
         participantCount: 0,
         createdAt: now,
         updatedAt: now,

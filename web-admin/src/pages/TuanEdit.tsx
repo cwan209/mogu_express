@@ -30,6 +30,7 @@ interface ItemEditValues {
   stock: number;
   sort: number;
   section: string;
+  tags: string[];
 }
 
 export default function TuanEdit() {
@@ -155,7 +156,7 @@ export default function TuanEdit() {
       productId: '',
       // priceDollars 留空,选 product 后从 basePrice 自动 fill;
       // 若 product 没有 basePrice,用户手填。
-      stock: 20, sort: (items.length + 1) * 10, section: '',
+      stock: 20, sort: (items.length + 1) * 10, section: '', tags: [],
     } as any);
     setItemModalOpen(true);
   };
@@ -179,6 +180,7 @@ export default function TuanEdit() {
       priceDollars: row.price / 100,
       stock: row.stock, sort: row.sort,
       section: row.section || '',
+      tags: row.tags || [],
     });
     setItemModalOpen(true);
   };
@@ -193,6 +195,7 @@ export default function TuanEdit() {
         await updateTuanItem(editingItem.tuanItemId, {
           price, stock: v.stock, sort: v.sort,
           section: (v.section || '').trim() || null,
+          tags: v.tags || [],
         });
         message.success('已保存');
       } else {
@@ -205,6 +208,7 @@ export default function TuanEdit() {
           productId: v.productId,
           price, stock: v.stock, sort: v.sort,
           section: (v.section || '').trim() || null,
+          tags: v.tags || [],
         });
         message.success('已添加');
       }
@@ -416,6 +420,19 @@ export default function TuanEdit() {
           <Form.Item label="团内分组" name="section"
             tooltip="顾客在团详情页 sidebar 看到的分组名(如 '蔬菜' / '运费必拍项')">
             <AutoComplete options={sectionOptions} allowClear placeholder="可选,留空归到'其他'组" />
+          </Form.Item>
+          <Form.Item label="标签 (回车确认,可多选)" name="tags"
+            tooltip="如 新品 / 过敏 / 易变形 / 限量。回车确认每个标签。">
+            <Select
+              mode="tags"
+              placeholder="选已有或自由填"
+              tokenSeparators={[',', ',']}
+              maxTagCount={10}
+              options={[
+                { value: '新品' }, { value: '过敏' }, { value: '易变形' },
+                { value: '限量' }, { value: '热销' }, { value: '清仓' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>

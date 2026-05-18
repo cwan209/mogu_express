@@ -57,6 +57,7 @@ export interface TuanItem {
   sold: number;
   sort: number;
   section?: string | null;
+  tags?: string[];
   participantCount: number;
   createdAt: string;
   updatedAt: string;
@@ -78,6 +79,7 @@ export interface Product {
   imageFileIds: string[];
   categoryIds: string[];
   section?: string | null;
+  tags?: string[];
   price: number;
   stock: number;
   sold: number;

@@ -11,6 +11,8 @@ import { formatCny } from '../utils/money';
 import { useCartStore } from '../store/cart';
 import type { Tuan, Product } from '../types';
 
+const TAG_COLORS = ['primary', 'success', 'warning', 'danger'] as const;
+
 export default function TuanDetail() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
@@ -246,11 +248,22 @@ function ProductRow({ product, onClick }: { product: Product; onClick: () => voi
       </div>
       <div className="flex-1 min-w-0" onClick={onClick}>
         <div className="text-sm line-clamp-2">{product.title}</div>
-        {product.section && (
-          <Tag color="default" className="mt-1" fill="outline" style={{ fontSize: 10 }}>
-            {product.section}
-          </Tag>
-        )}
+        <div className="flex flex-wrap items-center gap-1 mt-1">
+          {product.section && (
+            <Tag color="default" fill="outline" style={{ fontSize: 10 }}>
+              {product.section}
+            </Tag>
+          )}
+          {(product.tags || []).map((t, i) => (
+            <Tag
+              key={t}
+              color={TAG_COLORS[i % TAG_COLORS.length]}
+              style={{ fontSize: 10 }}
+            >
+              {t}
+            </Tag>
+          ))}
+        </div>
         <div className="flex items-center justify-between mt-2">
           <span className="text-brand font-medium">{formatCny(product.price)}</span>
           <span className="text-xs text-gray-400">

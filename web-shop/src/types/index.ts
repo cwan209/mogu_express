@@ -28,6 +28,7 @@ export interface Product {
   imageFileIds: string[];
   categoryIds: string[];
   section?: string | null;
+  tags?: string[];
   price: number;
   stock: number;
   sold: number;

@@ -16,6 +16,7 @@ export interface TuanItemPayload {
   stock: number;
   sort?: number;
   section?: string | null;
+  tags?: string[];
 }
 
 export async function createTuanItem(input: TuanItemPayload): Promise<{ _id: string }> {

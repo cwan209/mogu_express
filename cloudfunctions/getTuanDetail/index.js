@@ -56,6 +56,7 @@ exports.main = async (event) => {
       sold: ti.sold || 0,
       sort: ti.sort,
       section: ti.section || null,
+      tags: ti.tags || [],
       participantCount: ti.participantCount || 0,
     };
   });
