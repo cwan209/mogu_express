@@ -71,8 +71,10 @@ exports.main = async (event, context) => {
     isRegistered: !!userDoc.registeredAt,
     isAdmin,
     userInfo: {
-      name: userDoc.name || '',
-      phone: userDoc.phone || '',
+      name: userDoc.name || '',       // legacy 兼容,新代码不用
+      phone: userDoc.phone || '',     // legacy 兼容
+      groupId: userDoc.groupId || '',
+      wechat: userDoc.wechat || null,
     },
   };
 };

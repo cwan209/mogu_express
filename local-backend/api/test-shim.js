@@ -219,14 +219,23 @@ test('login 新用户 isRegistered=false', async () => {
   assert.equal(r.isRegistered, false);
 });
 
-test('registerProfile 后 isRegistered 变 true', async () => {
+test('registerProfile 后 isRegistered 变 true (groupId 流程)', async () => {
   reset();
   shim.__setContext({ OPENID: 'u_new' });
   await requireCf('login').main({}, {});
-  await requireCf('registerProfile').main({ name: 'A', phone: '0400' }, {});
+  await requireCf('registerProfile').main({ groupId: '墨尔本生鲜三号群' }, {});
   const r2 = await requireCf('login').main({}, {});
   assert.equal(r2.isRegistered, true);
-  assert.equal(r2.userInfo.name, 'A');
+  assert.equal(r2.userInfo.groupId, '墨尔本生鲜三号群');
+});
+
+test('registerProfile 空 groupId 拒', async () => {
+  reset();
+  shim.__setContext({ OPENID: 'u_new' });
+  await requireCf('login').main({}, {});
+  const r = await requireCf('registerProfile').main({}, {});
+  assert.equal(r.code, 1);
+  assert.match(r.message, /groupId/);
 });
 
 test('listProducts 按 tuanId 过滤', async () => {
