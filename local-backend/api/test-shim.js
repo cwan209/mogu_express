@@ -1170,6 +1170,80 @@ test('_admin/uploadShippingFeesXlsx header 错乱拒', async () => {
   assert.equal(r.code, 2, `expected code 2 for bad header, got: ${JSON.stringify(r)}`);
 });
 
+// ── 首页 Swiper 滚动 banner: announcements ──
+
+test('listAnnouncements 公开 cf 仅返 active=true 按 sortOrder asc', async () => {
+  reset({
+    announcements: [
+      { _id: 'an_1', image: 'http://x/a.png', link: '/tuan/t1', sortOrder: 10, active: true,  createdAt: new Date(), updatedAt: new Date() },
+      { _id: 'an_2', image: 'http://x/b.png', link: '/tuan/t2', sortOrder: 5,  active: true,  createdAt: new Date(), updatedAt: new Date() },
+      { _id: 'an_3', image: 'http://x/c.png', link: '/tuan/t3', sortOrder: 1,  active: false, createdAt: new Date(), updatedAt: new Date() },
+    ],
+  });
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('listAnnouncements').main({}, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.items.length, 2, 'only active=true items');
+  assert.equal(r.items[0]._id, 'an_2', 'sortOrder=5 first');
+  assert.equal(r.items[1]._id, 'an_1', 'sortOrder=10 second');
+});
+
+test('_admin/announcementCRUD list 含 inactive 全量 + sortOrder asc', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+    announcements: [
+      { _id: 'an_1', image: 'http://x/a.png', link: '/tuan/t1', sortOrder: 10, active: true,  createdAt: new Date(), updatedAt: new Date() },
+      { _id: 'an_2', image: 'http://x/b.png', link: '/tuan/t2', sortOrder: 5,  active: true,  createdAt: new Date(), updatedAt: new Date() },
+      { _id: 'an_3', image: 'http://x/c.png', link: '/tuan/t3', sortOrder: 1,  active: false, createdAt: new Date(), updatedAt: new Date() },
+    ],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  const r = await requireCf('_admin/announcementCRUD').main({ action: 'list', token });
+  assert.equal(r.code, 0);
+  assert.equal(r.items.length, 3, 'admin list 含 inactive');
+  assert.equal(r.items[0]._id, 'an_3', 'sortOrder=1 first');
+  assert.equal(r.items[1]._id, 'an_2');
+  assert.equal(r.items[2]._id, 'an_1');
+});
+
+test('_admin/announcementCRUD create 校验 image/link 并落库', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+  // 缺 image
+  const bad = await requireCf('_admin/announcementCRUD').main({
+    action: 'create', token, payload: { link: '/tuan/abc' },
+  });
+  assert.equal(bad.code, 1);
+  // 正确创建
+  const ok = await requireCf('_admin/announcementCRUD').main({
+    action: 'create', token,
+    payload: { image: 'http://s3/a.png', link: '/tuan/abc', sortOrder: 7, active: true },
+  });
+  assert.equal(ok.code, 0);
+  assert.ok(ok._id);
+  // list 能查到
+  const list = await requireCf('_admin/announcementCRUD').main({ action: 'list', token });
+  const found = list.items.find((x) => x._id === ok._id);
+  assert.ok(found, 'created announcement should be in list');
+  assert.equal(found.image, 'http://s3/a.png');
+  assert.equal(found.link, '/tuan/abc');
+  assert.equal(found.sortOrder, 7);
+  assert.equal(found.active, true);
+});
+
+test('_admin/announcementCRUD non-admin 拒 403', async () => {
+  reset({ admins: [] });
+  shim.__setContext({ OPENID: 'not_admin' });
+  const r = await requireCf('_admin/announcementCRUD').main({ action: 'list' });
+  assert.equal(r.code, 403);
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {

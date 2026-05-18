@@ -26,7 +26,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'mogu_express_dev_secret_REPLACE_ME
 
 const MAX_BYTES = 3 * 1024 * 1024;
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
-const ALLOWED_PURPOSE = new Set(['tuan_cover', 'product_cover', 'product_image']);
+const ALLOWED_PURPOSE = new Set(['tuan_cover', 'product_cover', 'product_image', 'announcement']);
 const MIME_TO_EXT = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
