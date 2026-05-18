@@ -48,37 +48,32 @@
 - [x] **模板格式**:`订单号 | 实际总重量(kg) | 应补尾款(¥) | 快递单号`,4 列 header 严格匹配(顺序可变),500 行/2MB 上限
 - [x] **加固**:per-row try/catch(部分失败可见)、`tracking.courierName` 保留既有值(不被 null 清空)、audit log 含 admin/total/applied/failed/orderNos(前 50)
 
-### Sprint 2(P1 增强,~4-5 天)— UX 提升
+### Sprint 2 ✅ 完成(2026-05-18 → 2026-05-19,~5 hours focused)— UX 提升
 
-- [ ] **我的页顺序调整**(~15min)
-  - 当前:用户卡片 → 订单/购物车/地址 → 完善资料 → 退出
-  - 改:账号信息 → 收货地址 → 我的订单 → 优惠券(等优惠券做完才能加)
-- [ ] **首页 Swiper 滚动 banner**(~半天)
-  - announcements collection: `{id, image, link, sortOrder, active, startAt, endAt}`
-  - admin CRUD 公告
-  - 首页用 antd-mobile `Swiper` 组件渲染
-- [ ] **购物车后端持久化**(~半天)
-  - 后端 cf `saveCart` / `getCart`,按 `_openid`
-  - 前端首次 OAuth 后 sync localStorage → mongo;每次改 cart 双写
-  - 跨设备一致(Luke 的手机和电脑微信都看到同一购物车)
-- [ ] **商品 tag 功能**(~半天)
-  - tuan_item 加 `tags: string[]`(新品 / 过敏 / 易变形 等)
-  - admin 输入框(下拉多选 + 自由填)
-  - 前端 TuanDetail 商品卡上展示彩色 tag
-- [ ] **订单导出 verify + 微信号字段**(~半天)
-  - check `_admin/exportOrders` 是否含 `wechat.nickname` / openid
-  - 没有则加;格式跟甲方对齐
-- [ ] **优惠券系统**(~1.5 天)
-  - coupons collection: `{code, type:'fixed'|'percent', value, validFrom, validTo, perUserLimit, totalLimit, used}`
-  - user_coupons collection: 用户领的券(状态)
-  - admin 发券 UI(批量生成 + 列表 + 失效)
-  - 前端 Checkout 选券 + 显示减免后总价
-  - createOrder 校验券有效性 + 标记 used
-- [ ] **尾款 summary 页**(~2h)
-  - 单独 route `/pending-shipping`,列出所有待付尾款订单清单
-  - 首页 banner 点击跳这,而不是混在 `/orders?filter=...`
-- [ ] **我的页"优惠券"入口**(随优惠券)
-  - 顺手补 Sprint 2 第一项的待补 entry
+> Sprint 2 ✅ 完成(2026-05-18 → 2026-05-19)— 7 项全部上 staging。
+> 13 commits(`8a5b803` → `f909cd9`),test-shim 56 → 68 passing,deploy 全过。
+> Clarify 设计:优惠券 fixed-only / 不叠运费 / 单订单一张 / admin 给指定 openid 发券。
+
+- [x] **我的页顺序调整**(`8a5b803`):账号信息 → 收货地址 → 我的订单 → 修改群号(原"完善资料"按内容改名)→ 退出。删购物车 entry(底 tabbar 已有)
+- [x] **首页 Swiper banner**(`a762aa3` `70c7a35` `a51a843`):
+  - announcements collection `{image,link,sortOrder,active,createdAt,updatedAt}`(`active` 手动上下架,startAt/endAt YAGNI)
+  - 后端 `_admin/announcementCRUD` + 公开 `listAnnouncements` + uploadImage 加 `announcement` purpose
+  - admin 新页 `/announcements`(Table + Modal + ImageUploader)
+  - web-shop Home 加 antd-mobile `Swiper`(autoplay 4s + loop,点击跳 `b.link` 站内)
+- [x] **购物车后端持久化**(`9174b1d` `17a67a2` `82b2be9`):
+  - 后端 `upsertCart` 加 `replace` 模式(客户端权威全量覆盖)
+  - web-shop store/cart.ts 加 `syncedFromServer` + `hydrateFromServer`;login 时 getCart 覆盖 local(server wins);用户改 cart → debounce 800ms → replaceCart push
+  - 修 hydrate echo race(两次 set 分开触发,避免刚拉的 items 被回推)
+- [x] **商品 tag 功能**(`7a4931a`):tuan_item.tags string[],trim/dedupe/cap 10/每条≤20;admin TuanEdit Modal `Select mode="tags"` + 6 预设;web-shop TuanDetail 商品卡彩色 Tag 循环 4 色
+- [x] **订单导出 verify + 微信号字段**(`b823ebd`):exportOrders 加 3 列(微信昵称 / 群号 / openid)插在姓名前;mock 同步加列
+- [x] **优惠券系统**(`b6836f4` `cc3a911` `aea916b`):
+  - 后端 coupons collection + 3 cf(`_admin/issueCoupon`、`_admin/listCoupons`、公开 `listMyCoupons`)+ createOrder hook(校验归属/有效期/减 amount/标 used/zero 自动 paid 跳 HuePay)
+  - admin 新页 `/coupons`(列表 filter status/openid + 发券 Modal)
+  - web-shop Checkout 加 List.Item 选券 + Popup 选项 + 实付价划线 + couponId 传 createOrder
+  - 新页 `/coupons` 我的优惠券(3 Tabs:未使用/已使用/已过期)
+  - Profile 加 🎟️ 我的优惠券 入口
+- [x] **尾款 summary 页**(`f909cd9`):新页 `/pending-shipping`(Card 列表 + 顶部 summary 横条 + 每单立即支付按钮)。PendingOrderBanner 多笔跳转改成 `/pending-shipping`,不再混在订单页。
+- [x] **我的页"优惠券"入口**(随优惠券 `aea916b`)
 
 ### Sprint 3(P2 后续,~1 天)— admin 加强
 
