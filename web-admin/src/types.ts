@@ -35,6 +35,14 @@ export interface CatalogProduct {
   categoryIds: string[];
   createdAt: string;
   updatedAt: string;
+  // 扩展字段(D3 引入)— 后端 productCRUD list 模式直接返回 products 文档
+  brand?: string;
+  spec?: string;
+  basePrice?: number;        // cents
+  englishName?: string;
+  courierName?: string;
+  courierFactor?: number;
+  secondaryImages?: Array<{ url: string; caption: string }>;
 }
 
 /**

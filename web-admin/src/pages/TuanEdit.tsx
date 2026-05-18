@@ -153,10 +153,23 @@ export default function TuanEdit() {
     itemForm.resetFields();
     itemForm.setFieldsValue({
       productId: '',
-      priceDollars: 9.99,
+      // priceDollars 留空,选 product 后从 basePrice 自动 fill;
+      // 若 product 没有 basePrice,用户手填。
       stock: 20, sort: (items.length + 1) * 10, section: '',
-    });
+    } as any);
     setItemModalOpen(true);
+  };
+
+  // 选 product 后自动 fill 默认值:只填空字段,尊重用户改动
+  const onPickProduct = (productId: string) => {
+    const p = catalog.find((x) => x._id === productId);
+    if (!p) return;
+    const current = itemForm.getFieldsValue();
+    const patch: any = { productId };
+    if (current.priceDollars == null && p.basePrice != null) {
+      patch.priceDollars = p.basePrice / 100;     // cents → 元
+    }
+    itemForm.setFieldsValue(patch);
   };
 
   const openEditModal = (row: Product) => {
@@ -365,7 +378,29 @@ export default function TuanEdit() {
               disabled={!!editingItem}
               options={catalogOptions}
               optionFilterProp="label"
+              onChange={onPickProduct}
             />
+          </Form.Item>
+          {/* 选中 product 后展示只读元数据(品牌 / 规格 / 英文名) */}
+          <Form.Item shouldUpdate={(prev, cur) => prev.productId !== cur.productId} noStyle>
+            {() => {
+              const pid = itemForm.getFieldValue('productId');
+              const p = catalog.find((x) => x._id === pid);
+              if (!p) return null;
+              const meta: string[] = [];
+              if (p.brand) meta.push(`品牌:${p.brand}`);
+              if (p.spec) meta.push(`规格:${p.spec}`);
+              if (p.englishName) meta.push(`英文名:${p.englishName}`);
+              if (meta.length === 0) return null;
+              return (
+                <div style={{
+                  background: '#f5f5f5', padding: 8, marginBottom: 16,
+                  fontSize: 12, color: '#666', borderRadius: 4,
+                }}>
+                  {meta.join(' · ')}
+                </div>
+              );
+            }}
           </Form.Item>
           <Space size={24} style={{ width: '100%' }} wrap>
             <Form.Item label="价格 (元)" name="priceDollars" rules={[{ required: true }]}>
