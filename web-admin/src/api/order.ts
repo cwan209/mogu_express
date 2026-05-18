@@ -47,6 +47,21 @@ export async function setShippingFee(orderId: string, amount: number): Promise<v
   await callCloud('_admin/setShippingFee', { orderId, amount });
 }
 
+export async function updateTracking(
+  orderId: string,
+  data: {
+    weight?: number;
+    courierName?: string;
+    courierNo?: string;
+  },
+) {
+  return callCloud<{ code: 0; tracking: any }>('_admin/updateTracking', { orderId, ...data });
+}
+
+export async function updateOrderNotes(orderId: string, sellerNote: string) {
+  return callCloud<{ code: 0; notes: any }>('_admin/updateOrderNotes', { orderId, sellerNote });
+}
+
 export interface ExportResult {
   code: number;
   filename: string;

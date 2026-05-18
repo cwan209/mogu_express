@@ -261,8 +261,8 @@ export const mockDb = {
         if (!filter?.keyword) return true;
         const k = filter.keyword.toLowerCase();
         return o.orderNo.toLowerCase().includes(k) ||
-          o.userSnapshot.name.toLowerCase().includes(k) ||
-          o.userSnapshot.phone.includes(k) ||
+          (o.userSnapshot.name || '').toLowerCase().includes(k) ||
+          (o.userSnapshot.phone || '').includes(k) ||
           o.items.some((it) => it.title.toLowerCase().includes(k));
       })
       .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));

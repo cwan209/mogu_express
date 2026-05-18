@@ -75,6 +75,14 @@ export interface Product {
   sold: number;
   sort: number;
   participantCount: number;
+  // 扩展字段(catalog 上的稳定属性,join 进来)
+  brand?: string;
+  spec?: string;
+  basePrice?: number;        // cents
+  englishName?: string;
+  courierName?: string;
+  courierFactor?: number;
+  secondaryImages?: Array<{ url: string; caption: string }>;
 }
 
 export interface Category {
@@ -147,7 +155,13 @@ export interface Order {
   orderNo: string;
   outTradeNo: string;
   openid: string;
-  userSnapshot: { name: string; phone: string };
+  userSnapshot: {
+    nickname?: string;
+    avatar?: string | null;
+    groupId?: string | null;
+    name?: string;        // legacy
+    phone?: string;       // legacy
+  };
   items: OrderItem[];
   amount: number;
   shipping: ShippingAddress;
@@ -161,6 +175,16 @@ export interface Order {
   refundId?: string;
   refundRejectReason?: string;
   shippingFee?: ShippingFee;
+  notes?: {
+    buyer?: string;
+    seller?: string;
+  };
+  tracking?: {
+    weight?: number | null;
+    courierName?: string | null;
+    courierNo?: string | null;
+    setAt?: string | null;
+  };
   createdAt: string;
   updatedAt: string;
 }
