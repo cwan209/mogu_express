@@ -52,7 +52,8 @@ function normalizeItem(it) {
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext();
   if (!OPENID) return { code: 401, message: 'not logged in' };
-  const { addressId, remark, requirePay = true } = event || {};
+  const { addressId, remark, requirePay: requirePayRaw = true, couponId } = event || {};
+  let requirePay = requirePayRaw;
   const rawItems = (event?.items || []).map(normalizeItem);
   if (!rawItems.length) return { code: 1, message: 'items required' };
   if (rawItems.length > MAX_ITEMS_PER_ORDER) {
@@ -130,6 +131,29 @@ exports.main = async (event) => {
     }
 
     const now = new Date();
+
+    // 应用 coupon(若提供):事务内验证归属/状态/有效期,失败抛 code 9。
+    let discount = 0;
+    let appliedCouponId = null;
+    if (couponId) {
+      const cDoc = await transaction.collection('coupons').doc(couponId).get()
+        .catch(() => null);
+      const coupon = cDoc && cDoc.data;
+      if (!coupon
+        || coupon._openid !== OPENID
+        || coupon.status !== 'unused'
+        || !(new Date(coupon.validTo) > now)) {
+        throw { code: 9, message: '优惠券无效或已失效' };
+      }
+      discount = Math.min(Number(coupon.amount) || 0, amount);
+      amount -= discount;
+      appliedCouponId = coupon._id;
+    }
+
+    // 若 coupon 把订单减到 0,强制 paid(跳过 HuePay)。
+    const couponZerod = appliedCouponId && amount === 0;
+    if (couponZerod) requirePay = false;
+
     const orderNo = generateOrderNo();
 
     const order = {
@@ -159,9 +183,21 @@ exports.main = async (event) => {
       createdAt: now,
       updatedAt: now,
     };
+    if (appliedCouponId) {
+      order.couponId = appliedCouponId;
+      order.discount = discount;
+    }
 
     const addRes = await transaction.collection('orders').add({ data: order });
     order._id = addRes._id;
+
+    // 标 coupon 为已用
+    if (appliedCouponId) {
+      await transaction.collection('coupons').doc(appliedCouponId).update({
+        data: { status: 'used', usedOrderId: addRes._id, usedAt: now },
+      });
+    }
+
     return order;
   }).catch((err) => {
     console.error('[createOrder] txn failed', err);

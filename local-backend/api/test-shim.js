@@ -1342,6 +1342,121 @@ test('upsertCart replace 空 items + 无 cart doc 不建空 doc', async () => {
   assert.equal(res.data.length, 0, 'no cart doc should exist for empty replace on new user');
 });
 
+// ── 优惠券系统 (Sprint 2.6) ──
+
+test('_admin/issueCoupon 给指定 openid 发券,listCoupons 可见', async () => {
+  const { hashPassword, sign } = require(path.join(cfRoot, '_lib/auth/jwt.js'));
+  reset({
+    admins: [{ _id: 'a1', username: 'admin', passwordHash: hashPassword('admin'), role: 'owner' }],
+  });
+  const token = sign({ sub: 'a1', role: 'owner' }, 'mogu_express_dev_secret_REPLACE_ME_IN_PROD');
+  shim.__setContext({ OPENID: null });
+
+  const validTo = new Date(Date.now() + 30 * 86400 * 1000).toISOString();
+  const r = await requireCf('_admin/issueCoupon').main({
+    token, openid: 'u1', amount: 1000, reason: '新用户欢迎', validTo,
+  });
+  assert.equal(r.code, 0, `expected success, got: ${JSON.stringify(r)}`);
+  assert.ok(r._id);
+
+  const list = await requireCf('_admin/listCoupons').main({ token, openid: 'u1' });
+  assert.equal(list.code, 0);
+  assert.equal(list.items.length, 1);
+  assert.equal(list.items[0]._openid, 'u1');
+  assert.equal(list.items[0].amount, 1000);
+  assert.equal(list.items[0].reason, '新用户欢迎');
+  assert.equal(list.items[0].status, 'unused');
+});
+
+test('listMyCoupons 按 openid 过滤 + 懒过期投射 status=expired', async () => {
+  const pastDate = new Date(Date.now() - 86400 * 1000);
+  const futureDate = new Date(Date.now() + 86400 * 1000);
+  reset({
+    coupons: [
+      // u1 的:1 张过期(unused 但 validTo 已过) + 1 张有效
+      { _id: 'c_expired', _openid: 'u1', amount: 500, reason: '过期券', status: 'unused',
+        validFrom: new Date(Date.now() - 30 * 86400 * 1000), validTo: pastDate,
+        createdBy: 'web', createdAt: new Date(Date.now() - 30 * 86400 * 1000) },
+      { _id: 'c_valid', _openid: 'u1', amount: 1000, reason: '有效券', status: 'unused',
+        validFrom: new Date(), validTo: futureDate,
+        createdBy: 'web', createdAt: new Date() },
+      // u2 的(不应出现在 u1 的列表里)
+      { _id: 'c_other', _openid: 'u2', amount: 2000, reason: '别人的', status: 'unused',
+        validFrom: new Date(), validTo: futureDate,
+        createdBy: 'web', createdAt: new Date() },
+    ],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  // 全部列表
+  const all = await requireCf('listMyCoupons').main({}, {});
+  assert.equal(all.code, 0);
+  assert.equal(all.items.length, 2, '应仅返回 u1 自己的');
+  const byId = Object.fromEntries(all.items.map((c) => [c._id, c]));
+  assert.equal(byId.c_expired.status, 'expired', '过期券 status 投射为 expired');
+  assert.equal(byId.c_valid.status, 'unused');
+  // 只看 expired
+  const expOnly = await requireCf('listMyCoupons').main({ status: 'expired' }, {});
+  assert.equal(expOnly.items.length, 1);
+  assert.equal(expOnly.items[0]._id, 'c_expired');
+});
+
+test('createOrder 应用 coupon: amount 减免 + coupon 标 used + usedOrderId', async () => {
+  const futureDate = new Date(Date.now() + 30 * 86400 * 1000);
+  reset({
+    users: [{ _openid: 'u1', wechat: { nickname: 'A' }, groupId: 'g1', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+    coupons: [
+      { _id: 'cp1', _openid: 'u1', amount: 150, reason: '测试', status: 'unused',
+        validFrom: new Date(Date.now() - 1000), validTo: futureDate,
+        createdBy: 'web', createdAt: new Date() },
+    ],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  const r = await requireCf('createOrder').main({
+    items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 2 }],  // 100 * 2 = 200
+    addressId: 'addr1', requirePay: false, couponId: 'cp1',
+  }, {});
+  assert.equal(r.code, 0, `expected success, got: ${JSON.stringify(r)}`);
+  assert.equal(r.order.amount, 50, '200 - 150 = 50');
+  assert.equal(r.order.couponId, 'cp1');
+  assert.equal(r.order.discount, 150);
+  // coupon 状态变 used + usedOrderId
+  const cp = await shim.database().collection('coupons').doc('cp1').get();
+  assert.equal(cp.data.status, 'used');
+  assert.equal(cp.data.usedOrderId, r.order._id);
+  assert.ok(cp.data.usedAt);
+});
+
+test('createOrder 拒绝过期 coupon → code 9', async () => {
+  const pastDate = new Date(Date.now() - 86400 * 1000);
+  reset({
+    users: [{ _openid: 'u1', wechat: { nickname: 'A' }, groupId: 'g1', registeredAt: new Date() }],
+    addresses: [{ _id: 'addr1', _openid: 'u1', isDefault: true,
+      recipient: 'A', phone: '0400', line1: '1 St', line2: '',
+      suburb: 'M', state: 'VIC', postcode: '3000' }],
+    coupons: [
+      { _id: 'cp_exp', _openid: 'u1', amount: 500, reason: '过期券', status: 'unused',
+        validFrom: new Date(Date.now() - 30 * 86400 * 1000), validTo: pastDate,
+        createdBy: 'web', createdAt: new Date() },
+    ],
+  });
+  shim.__setContext({ OPENID: 'u1' });
+  let thrown = null;
+  try {
+    await requireCf('createOrder').main({
+      items: [{ tuanItemId: 'ti_p1_tuan_001', quantity: 1 }],
+      addressId: 'addr1', requirePay: false, couponId: 'cp_exp',
+    }, {});
+  } catch (err) {
+    thrown = err;
+  }
+  assert.ok(thrown, 'expected throw for expired coupon');
+  assert.equal(thrown.code, 9, `expected code 9, got: ${JSON.stringify(thrown)}`);
+  assert.match(thrown.message, /优惠券/);
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {
