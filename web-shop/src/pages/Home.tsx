@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { NavBar, NoticeBar, PullToRefresh, Skeleton, Empty, Image, Tag } from 'antd-mobile';
+import { NavBar, NoticeBar, PullToRefresh, Skeleton, Empty, Image, Tag, Swiper } from 'antd-mobile';
 import { listTuans, getHomeBanner, type HomeBanner } from '../api/tuan';
+import { listAnnouncements, type Announcement } from '../api/announcement';
 import type { Tuan } from '../types';
 import { getCountdown } from '../utils/date';
 import PendingOrderBanner from '../components/PendingOrderBanner';
@@ -19,15 +20,21 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [tuans, setTuans] = useState<Tuan[]>([]);
   const [banner, setBanner] = useState<HomeBanner | null>(null);
+  const [banners, setBanners] = useState<Announcement[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);  // 倒计时刷新
 
   const load = async () => {
     setError(null);
     try {
-      const [list, b] = await Promise.all([listTuans(), getHomeBanner().catch(() => null)]);
+      const [list, b, ann] = await Promise.all([
+        listTuans(),
+        getHomeBanner().catch(() => null),
+        listAnnouncements().catch(() => []),
+      ]);
       setTuans(list);
       setBanner(b);
+      setBanners(ann);
     } catch (e: any) {
       setError(e.message || '加载失败');
     } finally {
@@ -44,6 +51,38 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 pb-16">
       <NavBar back={null} className="bg-white">蘑菇接龙</NavBar>
+
+      {banners.length > 0 && (
+        <Swiper
+          autoplay
+          loop
+          autoplayInterval={4000}
+          indicator={(total, current) => (
+            <div style={{
+              position: 'absolute', bottom: 8, right: 12,
+              background: 'rgba(0,0,0,0.4)', color: '#fff',
+              padding: '2px 8px', borderRadius: 10, fontSize: 12,
+            }}>
+              {current + 1}/{total}
+            </div>
+          )}
+        >
+          {banners.map((b) => (
+            <Swiper.Item key={b._id}>
+              <div
+                onClick={() => nav(b.link)}
+                style={{ cursor: 'pointer' }}
+              >
+                <img
+                  src={b.image}
+                  alt=""
+                  style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }}
+                />
+              </div>
+            </Swiper.Item>
+          ))}
+        </Swiper>
+      )}
 
       <PendingOrderBanner />
 
