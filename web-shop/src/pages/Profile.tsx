@@ -1,16 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { NavBar, List, Dialog, Image } from 'antd-mobile';
 import {
-  UserOutline, UnorderedListOutline, LocationOutline, RightOutline, ShopbagOutline,
+  UserOutline, UnorderedListOutline, LocationOutline, RightOutline,
 } from 'antd-mobile-icons';
 import { useAuthStore } from '../store/auth';
-import { useCartStore } from '../store/cart';
 
 export default function Profile() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const cartQty = useCartStore((s) => s.totalQty());
 
   const onLogout = () => {
     Dialog.confirm({
@@ -59,26 +57,18 @@ export default function Profile() {
 
       <List className="mt-2">
         <List.Item
-          prefix={<UnorderedListOutline />}
-          arrow={<RightOutline />}
-          onClick={() => nav('/orders')}
-        >
-          我的订单
-        </List.Item>
-        <List.Item
-          prefix={<ShopbagOutline />}
-          arrow={<RightOutline />}
-          extra={cartQty > 0 ? `${cartQty} 件` : ''}
-          onClick={() => nav('/cart')}
-        >
-          购物车
-        </List.Item>
-        <List.Item
           prefix={<LocationOutline />}
           arrow={<RightOutline />}
           onClick={() => nav('/addresses')}
         >
           收货地址
+        </List.Item>
+        <List.Item
+          prefix={<UnorderedListOutline />}
+          arrow={<RightOutline />}
+          onClick={() => nav('/orders')}
+        >
+          我的订单
         </List.Item>
       </List>
 
@@ -88,7 +78,7 @@ export default function Profile() {
           arrow={<RightOutline />}
           onClick={() => nav('/register-profile?returnTo=/profile')}
         >
-          完善资料
+          修改群号
         </List.Item>
       </List>
 
