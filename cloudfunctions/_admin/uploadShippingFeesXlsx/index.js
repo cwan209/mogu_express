@@ -146,6 +146,7 @@ exports.main = async (event) => {
       classified.status = 'matched';
       classified.before = { shippingFee: order.shippingFee, tracking: order.tracking };
       classified._mongoId = order._id;
+      classified._existingCourierName = order.tracking?.courierName ?? null;
       rows.push(classified);
     }
 
@@ -158,37 +159,47 @@ exports.main = async (event) => {
     };
 
     if (!dryRun) {
-      let applied = 0;
       for (const row of rows) {
         if (row.status !== 'matched') continue;
         const now = new Date();
         const outTradeNo = 'SHIP' + Date.now() + crypto.randomBytes(4).toString('hex').toUpperCase();
-        await db.collection('orders').doc(row._mongoId).update({
-          data: {
-            shippingFee: {
-              amount: row.fee,
-              outTradeNo,
-              payStatus: 'pending',
-              setAt: now,
-              paidAt: null,
+        try {
+          await db.collection('orders').doc(row._mongoId).update({
+            data: {
+              shippingFee: {
+                amount: row.fee,
+                outTradeNo,
+                payStatus: 'pending',
+                setAt: now,
+                paidAt: null,
+              },
+              tracking: {
+                weight: row.weight,
+                courierName: row._existingCourierName ?? null,
+                courierNo: row.courierNo,
+                setAt: now,
+              },
+              updatedAt: now,
             },
-            tracking: {
-              weight: row.weight,
-              courierName: null,
-              courierNo: row.courierNo,
-              setAt: now,
-            },
-            updatedAt: now,
-          },
-        });
-        applied += 1;
+          });
+        } catch (err) {
+          row.status = 'apply_failed';
+          row.message = err.message || 'update failed';
+        }
       }
+      // 重算:per-row try/catch 后,部分 matched 行可能变成 apply_failed
+      const applied = rows.filter((r) => r.status === 'matched').length;
+      const failed = rows.filter((r) => r.status === 'apply_failed').length;
       summary.applied = applied;
+      summary.applyFailed = failed;
+      summary.matched = applied;
       const { OPENID } = cloud.getWXContext();
-      console.log(`[uploadShippingFeesXlsx] admin=${OPENID || 'web'} total=${rows.length} applied=${applied} skipped=${rows.length - applied}`);
+      const appliedOrderNos = rows.filter((r) => r.status === 'matched').map((r) => r.orderNo).slice(0, 50);
+      const skipped = rows.length - applied - failed;
+      console.log(`[uploadShippingFeesXlsx] admin=${OPENID || 'web'} total=${rows.length} applied=${applied} failed=${failed} skipped=${skipped} orderNos=${appliedOrderNos.join(',')}`);
     }
 
-    const out = rows.map(({ _mongoId, ...rest }) => rest);
+    const out = rows.map(({ _mongoId, _existingCourierName, ...rest }) => rest);
     return { code: 0, rows: out, summary };
   } catch (err) {
     return { code: err.code || 500, message: err.message || 'error' };

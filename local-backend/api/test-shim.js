@@ -1127,6 +1127,25 @@ test('_admin/uploadShippingFeesXlsx apply 只写 matched 行', async () => {
   assert.equal(ordB.data.shippingFee.outTradeNo, 'SHIP_OLD', 'paid order should not be modified');
 });
 
+test('_admin/uploadShippingFeesXlsx apply 保留既有 courierName', async () => {
+  reset({
+    orders: [
+      { _id: 'ord_C', orderNo: 'MG_C', _openid: 'u1', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, tracking: { courierName: '顺丰', courierNo: 'OLD123', weight: 1.0, setAt: new Date() }, createdAt: new Date() },
+    ],
+    admins: [{ openid: 'admin1', username: 'admin' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const xlsxBase64 = await makeTestXlsx([
+    ['MG_C', 2.5, 35.00, 'NEW999'],
+  ]);
+  const r = await requireCf('_admin/uploadShippingFeesXlsx').main({ xlsxBase64, dryRun: false }, {});
+  assert.equal(r.summary.applied, 1);
+  const ord = await shim.database().collection('orders').doc('ord_C').get();
+  assert.equal(ord.data.tracking.courierName, '顺丰', 'existing courierName preserved');
+  assert.equal(ord.data.tracking.courierNo, 'NEW999');
+  assert.equal(ord.data.tracking.weight, 2.5);
+});
+
 test('_admin/uploadShippingFeesXlsx 非 admin 拒', async () => {
   reset({
     orders: [{ _id: 'ord_A', orderNo: 'MG_A', _openid: 'u1', items: [], amount: 0, status: 'paid', payStatus: 'paid', shipping: {}, createdAt: new Date() }],

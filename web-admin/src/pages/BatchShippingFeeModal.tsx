@@ -25,6 +25,7 @@ const STATUS_TAG: Record<BatchShippingStatus, { color: string; label: string }> 
   already_paid: { color: 'warning', label: '🟠 已付' },
   invalid: { color: 'error', label: '⚠️ 非法' },
   duplicate_in_file: { color: 'error', label: '🚫 文件重复' },
+  apply_failed: { color: 'error', label: '⛔️ 应用失败' },
 };
 
 async function fileToBase64(file: File): Promise<string> {
@@ -84,7 +85,12 @@ export default function BatchShippingFeeModal({ open, onClose, onApplied }: Prop
     try {
       const r = await uploadShippingFeesXlsx(base64, false);
       setResp(r);
-      setPhase('result');
+      if ((r.summary.applyFailed ?? 0) > 0) {
+        setPhase('preview');  // 部分失败:回到预览让 admin 看清楚哪些行失败
+        message.warning(`${r.summary.applied ?? 0} 成功, ${r.summary.applyFailed} 失败 — 详见列表`);
+      } else {
+        setPhase('result');
+      }
       onApplied?.();
     } catch (e: any) {
       message.error(e.message || '应用失败');
@@ -187,6 +193,9 @@ export default function BatchShippingFeeModal({ open, onClose, onApplied }: Prop
             🟠 已付 {resp.summary.alreadyPaid} ·{' '}
             🚫 重复 {resp.summary.duplicateInFile} ·{' '}
             ⚠️ 非法 {resp.summary.invalid}
+            {(resp.summary.applyFailed ?? 0) > 0 && (
+              <> · ⛔️ 应用失败 {resp.summary.applyFailed}</>
+            )}
           </div>
           <Table
             dataSource={resp.rows}
@@ -197,15 +206,21 @@ export default function BatchShippingFeeModal({ open, onClose, onApplied }: Prop
             scroll={{ y: 400 }}
           />
           <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
-            <Button onClick={() => setPhase('pick')}>返回选文件</Button>
-            <Button
-              type="primary"
-              loading={loading}
-              onClick={handleApply}
-              disabled={resp.summary.matched === 0}
-            >
-              ✅ 确认应用 {resp.summary.matched} 行
-            </Button>
+            {resp.summary.applied !== undefined ? (
+              <Button type="primary" onClick={handleClose}>关闭</Button>
+            ) : (
+              <>
+                <Button onClick={() => setPhase('pick')}>返回选文件</Button>
+                <Button
+                  type="primary"
+                  loading={loading}
+                  onClick={handleApply}
+                  disabled={resp.summary.matched === 0}
+                >
+                  ✅ 确认应用 {resp.summary.matched} 行
+                </Button>
+              </>
+            )}
           </Space>
         </Space>
       )}

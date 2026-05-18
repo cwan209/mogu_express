@@ -167,7 +167,8 @@ export type BatchShippingStatus =
   | 'not_found'
   | 'already_paid'
   | 'invalid'
-  | 'duplicate_in_file';
+  | 'duplicate_in_file'
+  | 'apply_failed';
 
 export interface BatchShippingRow {
   row: number;
@@ -193,6 +194,7 @@ export interface BatchShippingResp {
     invalid: number;
     duplicateInFile: number;
     applied?: number;
+    applyFailed?: number;
   };
 }
 
