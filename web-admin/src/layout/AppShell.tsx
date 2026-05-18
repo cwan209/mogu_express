@@ -11,6 +11,7 @@ function matchTopKey(pathname: string): string {
   if (pathname.startsWith('/categories'))    return '/categories';
   if (pathname.startsWith('/announcements')) return '/announcements';
   if (pathname.startsWith('/orders'))        return '/orders';
+  if (pathname.startsWith('/coupons'))       return '/coupons';
   if (pathname.startsWith('/settings'))      return '/settings';
   return '/dashboard';
 }
@@ -29,6 +30,7 @@ export default function AppShell() {
     { key: '/categories',    label: '分类' },
     { key: '/announcements', label: 'Banner' },
     { key: '/orders',        label: '订单' },
+    { key: '/coupons',       label: '优惠券' },
     { key: '/settings',      label: '站点设置' },
   ];
 

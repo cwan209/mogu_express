@@ -113,6 +113,22 @@ export interface Announcement {
   updatedAt?: string;
 }
 
+export type CouponStatus = 'unused' | 'used' | 'expired';
+
+export interface Coupon {
+  _id: string;
+  _openid: string;
+  amount: number;
+  reason: string;
+  status: CouponStatus;
+  validFrom: string;
+  validTo: string;
+  usedOrderId?: string;
+  usedAt?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface Participant {
   // 脱敏过的公开快照,不暴露 openid
   id: string;
