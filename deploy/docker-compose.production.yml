@@ -22,13 +22,19 @@ services:
     container_name: mogu_mongo
     restart: unless-stopped
     # 单节点 replset(multi-doc transaction 需要)。不开 auth — 容器只在内网
-    # docker network 暴露,没有 ports: 映射到宿主;keyFile + auth + replSet
-    # 三件套有鸡蛋问题,YAGNI。
+    # docker network 暴露;keyFile + auth + replSet 三件套有鸡蛋问题,YAGNI。
+    #
+    # ports 只绑 127.0.0.1 → 不暴露公网,仅 VPS 本机可连。
+    # 用途:laptop 经 SSH tunnel(`ssh -L 27017:127.0.0.1:27017 ...`)
+    # 连本地 mongo-viewer / mongosh 查 staging 数据。
+    # 若不需要,可改回 networks-only(删 ports 行)。
     command:
       - --replSet=rs0
       - --bind_ip_all
     environment:
       TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:27017:27017"
     volumes:
       - /data/mongo:/data/db
     networks: [mogunet]
