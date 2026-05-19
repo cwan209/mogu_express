@@ -27,9 +27,14 @@ const DB_NAME   = process.env.MONGO_DB  || 'mogu_express';
 const PORT      = Number(process.env.PORT || 4321);
 const HOST      = process.env.HOST || '127.0.0.1';
 
+// directConnection 默认 on:这个 viewer 主要给单节点 / SSH tunnel 场景用。
+// staging mongo 是 --replSet=rs0,client 连上后会去 rs.config() 拿内部
+// hostname (e.g. 'mongo'),laptop 解析不到 → getaddrinfo ENOTFOUND mongo。
+// directConnection=true 跳过 replset discovery,直接用 URI 指定的 host。
+// 想跑多节点 replset 时显式 export MONGO_DIRECT_CONNECTION=0
 const client = new MongoClient(MONGO_URL, {
   serverSelectionTimeoutMS: 5000,
-  directConnection: process.env.MONGO_DIRECT_CONNECTION === '1',
+  directConnection: process.env.MONGO_DIRECT_CONNECTION !== '0',
 });
 
 try {

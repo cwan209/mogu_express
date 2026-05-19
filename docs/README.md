@@ -48,6 +48,7 @@
 | 文件 | 说明 |
 |---|---|
 | [`local-dev.md`](./local-dev.md) | **本地 Docker 完整栈** — 无需真实 微信云开发 / HuePay 凭证 |
+| [`mongo-viewer.md`](./mongo-viewer.md) | 简易 HTML MongoDB viewer(`npm run viewer`)— 浏览器看本地 / staging 数据 |
 | [`cloud-migration.md`](./cloud-migration.md) | 微信云开发迁移指南(早期方案,2026-05-09 后已弃,转 H5) |
 
 ### 4. 部署 / 运维

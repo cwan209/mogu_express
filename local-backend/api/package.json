@@ -10,7 +10,8 @@
     "dev": "nodemon server.js",
     "seed": "node seed.js",
     "reset": "node seed.js --reset",
-    "test": "node test-shim.js"
+    "test": "node test-shim.js",
+    "viewer": "node mongo-viewer.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1034.0",
