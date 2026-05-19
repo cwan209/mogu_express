@@ -10,6 +10,7 @@ import Announcements from './pages/Announcements';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Coupons from './pages/Coupons';
+import Users from './pages/Users';
 import Settings from './pages/Settings';
 import RequireAuth from './auth/RequireAuth';
 import AppShell from './layout/AppShell';
@@ -43,6 +44,8 @@ export default function App() {
         <Route path="/orders/:id" element={<OrderDetail />} />
 
         <Route path="/coupons" element={<Coupons />} />
+
+        <Route path="/users" element={<Users />} />
 
         <Route path="/settings" element={<Settings />} />
       </Route>

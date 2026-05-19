@@ -113,6 +113,19 @@ export interface Announcement {
   updatedAt?: string;
 }
 
+export interface UserAdminView {
+  _id: string;
+  _openid: string;
+  nickname: string;
+  avatar: string | null;
+  groupId: string | null;
+  adminNotes: string;
+  adminTags: string[];
+  createdAt: string;
+  orderCount?: number;
+  totalAmount?: number;
+}
+
 export type CouponStatus = 'unused' | 'used' | 'expired';
 
 export interface Coupon {

@@ -1595,6 +1595,93 @@ test('huepay token cache — stub 模式连续两次 createOrder 不抛', async 
   await huepay.createOrder({ outTradeNo: 'TRADE_T3', amount: 100, body: 'test', openid: 'oXXX' });
 });
 
+// ════════════════════════════════════════════
+// _admin/userCRUD (Sprint 3-2)
+// ════════════════════════════════════════════
+
+test('_admin/userCRUD list 分页 + keyword 搜索', async () => {
+  reset({
+    users: [
+      { _id: 'u1', _openid: 'oAA', wechat: { nickname: 'Luke' }, groupId: '测试群', createdAt: new Date() },
+      { _id: 'u2', _openid: 'oBB', wechat: { nickname: 'Alice' }, groupId: '测试群', createdAt: new Date() },
+      { _id: 'u3', _openid: 'oCC', wechat: { nickname: '王晨路' }, groupId: '群2', createdAt: new Date() },
+    ],
+    admins: [{ openid: 'admin1' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const r1 = await requireCf('_admin/userCRUD').main({ action: 'list', page: 1, pageSize: 20 }, {});
+  assert.equal(r1.code, 0);
+  assert.equal(r1.total, 3);
+  assert.equal(r1.items.length, 3);
+
+  const r2 = await requireCf('_admin/userCRUD').main({ action: 'list', keyword: 'Luke' }, {});
+  assert.equal(r2.total, 1);
+  assert.equal(r2.items[0].nickname, 'Luke');
+
+  const r3 = await requireCf('_admin/userCRUD').main({ action: 'list', keyword: '测试群' }, {});
+  assert.equal(r3.total, 2);
+
+  const r4 = await requireCf('_admin/userCRUD').main({ action: 'list', keyword: 'oCC' }, {});
+  assert.equal(r4.total, 1);
+  assert.equal(r4.items[0]._openid, 'oCC');
+});
+
+test('_admin/userCRUD update 只能改 adminNotes/adminTags', async () => {
+  reset({
+    users: [{ _id: 'u1', _openid: 'oAA', wechat: { nickname: 'Luke' }, createdAt: new Date() }],
+    admins: [{ openid: 'admin1' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const r = await requireCf('_admin/userCRUD').main({
+    action: 'update',
+    id: 'u1',
+    patch: { adminNotes: '大客户', adminTags: ['VIP', '老顾客'] },
+  }, {});
+  assert.equal(r.code, 0);
+  const u = await shim.database().collection('users').doc('u1').get();
+  assert.equal(u.data.adminNotes, '大客户');
+  assert.deepEqual(u.data.adminTags, ['VIP', '老顾客']);
+
+  // 试改非白名单字段(应被忽略)
+  await requireCf('_admin/userCRUD').main({
+    action: 'update',
+    id: 'u1',
+    patch: { adminNotes: 'updated', wechat: { nickname: 'HACKED' }, _openid: 'oEVIL' },
+  }, {});
+  const u2 = await shim.database().collection('users').doc('u1').get();
+  assert.equal(u2.data.adminNotes, 'updated');
+  assert.equal(u2.data.wechat.nickname, 'Luke', 'wechat.nickname 不能被 update 改');
+  assert.equal(u2.data._openid, 'oAA', '_openid 不能被 update 改');
+});
+
+test('_admin/userCRUD adminTags 校验 (dedupe + cap 10 + 30 char limit)', async () => {
+  reset({
+    users: [{ _id: 'u1', _openid: 'oAA', wechat: {}, createdAt: new Date() }],
+    admins: [{ openid: 'admin1' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const longTag = 'X'.repeat(31);
+  await requireCf('_admin/userCRUD').main({
+    action: 'update',
+    id: 'u1',
+    patch: { adminTags: ['VIP', 'VIP', '老顾客', '', longTag, 'A','B','C','D','E','F','G','H','I','J'] },
+  }, {});
+  const u = await shim.database().collection('users').doc('u1').get();
+  // 'VIP' dedupe → 1, '老顾客' → 1, '' filtered, longTag filtered, 然后 A-J 共 10 个 → cap 10 total
+  assert.equal(u.data.adminTags.length, 10);
+  assert.ok(u.data.adminTags.includes('VIP'));
+  assert.ok(u.data.adminTags.includes('老顾客'));
+  assert.ok(!u.data.adminTags.includes(longTag));
+  assert.ok(!u.data.adminTags.includes(''));
+});
+
+test('_admin/userCRUD 非 admin 拒', async () => {
+  reset({ users: [], admins: [] });
+  shim.__setContext({ OPENID: 'not_admin' });
+  const r = await requireCf('_admin/userCRUD').main({ action: 'list' }, {});
+  assert.equal(r.code, 403);
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {
