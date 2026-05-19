@@ -118,21 +118,71 @@ export default function OrderDetail() {
       </div>
 
       {/* 商品列表 */}
-      <div className="bg-white mt-2">
-        {order.items.map((it) => (
-          <div key={it.tuanItemId || it.productId} className="flex p-3 gap-3 border-b border-gray-100">
-            <Image src={it.coverFileId} width={60} height={60} fit="cover" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm line-clamp-2">{it.title}</div>
-              <div className="text-xs text-gray-500 mt-1">{formatCny(it.price)} × {it.quantity}</div>
+      {(() => {
+        const itemsTotal = order.items.reduce((s, it) => s + it.subtotal, 0);
+        const hasDiscount = (order.discount || 0) > 0;
+        return (
+          <div className="bg-white mt-2">
+            {order.items.map((it) => (
+              <div key={it.tuanItemId || it.productId} className="flex p-3 gap-3 border-b border-gray-100">
+                <Image src={it.coverFileId} width={60} height={60} fit="cover" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm line-clamp-2">{it.title}</div>
+                  <div className="text-xs text-gray-500 mt-1">{formatCny(it.price)} × {it.quantity}</div>
+                </div>
+                <div className="text-brand">{formatCny(it.subtotal)}</div>
+              </div>
+            ))}
+            <div className="p-3 text-sm space-y-1 border-t border-gray-100">
+              <div className="flex justify-between text-gray-600">
+                <span>商品金额</span>
+                <span>{formatCny(itemsTotal)}</span>
+              </div>
+              {hasDiscount && (
+                <div className="flex justify-between text-brand">
+                  <span>优惠券减免</span>
+                  <span>-{formatCny(order.discount!)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-brand font-medium pt-1">
+                <span>实付商品款</span>
+                <span>{formatCny(order.amount)}</span>
+              </div>
             </div>
-            <div className="text-brand">{formatCny(it.subtotal)}</div>
           </div>
-        ))}
-        <div className="flex justify-end p-3 text-brand font-medium border-t border-gray-100">
-          实付 {formatCny(order.amount)}
+        );
+      })()}
+
+      {/* 运费 Card — admin setShippingFee 后才显示 */}
+      {order.shippingFee && (
+        <div className="bg-white mt-2 p-4">
+          <div className="text-xs text-gray-500 mb-2">运费</div>
+          <div className="flex items-center justify-between">
+            <span className="text-base">{formatCny(order.shippingFee.amount)}</span>
+            {order.shippingFee.payStatus === 'paid' ? (
+              <Tag color="success">已付</Tag>
+            ) : (
+              <Tag color="warning">待付</Tag>
+            )}
+          </div>
+          {order.shippingFee.payStatus === 'paid' && order.shippingFee.paidAt && (
+            <div className="text-xs text-gray-500 mt-2">
+              付款时间:{formatTime(order.shippingFee.paidAt)}
+            </div>
+          )}
+          {order.shippingFee.payStatus === 'pending' && (
+            <Button
+              block
+              color="primary"
+              size="small"
+              style={{ marginTop: 8 }}
+              onClick={() => nav(`/pay-shipping/${order._id}`)}
+            >
+              立即支付运费
+            </Button>
+          )}
         </div>
-      </div>
+      )}
 
       {/* 物流信息 Card — admin 设了 tracking 才显示 */}
       {order.tracking && (order.tracking.weight != null || order.tracking.courierNo) && (

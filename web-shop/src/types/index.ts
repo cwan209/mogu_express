@@ -130,6 +130,8 @@ export interface Order {
   refundId?: string;
   refundRejectReason?: string;
   shippingFee?: ShippingFee;
+  couponId?: string;
+  discount?: number;   // cents, 优惠券减免金额
   createdAt: string;
   updatedAt: string;
 }
