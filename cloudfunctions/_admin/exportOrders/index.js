@@ -91,23 +91,23 @@ exports.main = async (event) => {
       for (let i = 0; i < o.items.length; i++) {
         const it = o.items[i];
         ws1.addRow({
-          orderNo:   i === 0 ? o.orderNo : '',
-          createdAt: i === 0 ? new Date(o.createdAt).toLocaleString('zh-CN') : '',
-          status:    i === 0 ? (STATUS_LABEL[o.status] || o.status) : '',
-          paidAt:    i === 0 && o.paidAt ? new Date(o.paidAt).toLocaleString('zh-CN') : '',
-          shippedAt: i === 0 && o.shippedAt ? new Date(o.shippedAt).toLocaleString('zh-CN') : '',
-          nickname:  i === 0 ? (o.userSnapshot?.nickname || o.userSnapshot?.wechat?.nickname || '') : '',
-          groupId:   i === 0 ? (o.userSnapshot?.groupId || '') : '',
-          openid:    i === 0 ? (o._openid || '') : '',
-          name:      i === 0 ? (o.userSnapshot?.name || o.shipping?.recipient || '') : '',
-          phone:     i === 0 ? (o.userSnapshot?.phone || o.shipping?.phone || '') : '',
-          address:   i === 0 ? addrText : '',
+          orderNo:   o.orderNo,
+          createdAt: new Date(o.createdAt).toLocaleString('zh-CN'),
+          status:    STATUS_LABEL[o.status] || o.status,
+          paidAt:    o.paidAt ? new Date(o.paidAt).toLocaleString('zh-CN') : '',
+          shippedAt: o.shippedAt ? new Date(o.shippedAt).toLocaleString('zh-CN') : '',
+          nickname:  o.userSnapshot?.nickname || o.userSnapshot?.wechat?.nickname || '',
+          groupId:   o.userSnapshot?.groupId || '',
+          openid:    o._openid || '',
+          name:      o.userSnapshot?.name || o.shipping?.recipient || '',
+          phone:     o.userSnapshot?.phone || o.shipping?.phone || '',
+          address:   addrText,
           itemTitle: it.title,
           price:     Number(fmtMoney(it.price)),
           qty:       it.quantity,
           subtotal:  Number(fmtMoney(it.subtotal)),
           amount:    i === 0 ? Number(fmtMoney(o.amount)) : '',
-          remark:    i === 0 ? (o.remark || '') : '',
+          remark:    o.remark || '',
         });
       }
     }

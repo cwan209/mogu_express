@@ -116,21 +116,21 @@ async function mockExportOrders(filter?: any): Promise<ExportResult> {
     for (let i = 0; i < o.items.length; i++) {
       const it = o.items[i];
       ws1.addRow({
-        orderNo: i === 0 ? o.orderNo : '',
-        createdAt: i === 0 ? new Date(o.createdAt).toLocaleString('zh-CN') : '',
-        status: i === 0 ? (STATUS_LABEL[o.status] || o.status) : '',
-        nickname: i === 0 ? ((o.userSnapshot as any).nickname || '') : '',
-        groupId: i === 0 ? ((o.userSnapshot as any).groupId || '') : '',
-        openid: i === 0 ? ((o as any)._openid || '') : '',
-        name: i === 0 ? o.userSnapshot.name : '',
-        phone: i === 0 ? o.userSnapshot.phone : '',
-        address: i === 0 ? addr : '',
+        orderNo: o.orderNo,
+        createdAt: new Date(o.createdAt).toLocaleString('zh-CN'),
+        status: STATUS_LABEL[o.status] || o.status,
+        nickname: (o.userSnapshot as any).nickname || '',
+        groupId: (o.userSnapshot as any).groupId || '',
+        openid: (o as any)._openid || '',
+        name: o.userSnapshot.name,
+        phone: o.userSnapshot.phone,
+        address: addr,
         itemTitle: it.title,
         price: Number((it.price / 100).toFixed(2)),
         qty: it.quantity,
         subtotal: Number((it.subtotal / 100).toFixed(2)),
         amount: i === 0 ? Number((o.amount / 100).toFixed(2)) : '',
-        remark: i === 0 ? o.remark : '',
+        remark: o.remark,
       });
     }
   }
