@@ -111,16 +111,20 @@
 
 ---
 
-### Sprint 3(P2 后续,~1 天)— admin 加强
+### Sprint 3 ✅ 完成(2026-05-19)— admin 加强
 
-- [ ] **批量创建商品(Excel)**(~半天)
-  - 后端 cf `_admin/uploadProductsXlsx`:接 xlsx → 批量 insert
-  - 模板格式待定(品牌 / 规格 / 价格 / 名称 / 英文名 / 快递名 / 系数)
-  - 图片不在 xlsx,后续单独上传
-- [ ] **用户管理**(~半天)
-  - admin 加 `/users` 页面:列表(分页)+ 搜索(手机/昵称/openid)+ 看详情
-  - 操作:加备注 / 标签 / 禁用(soft delete with `disabled: true` flag)
-  - 用 user.disabled = true 时,wxLogin / verifyOtp 拒绝返 token
+> 2 commits(`450aca4` + `d23b494`),test-shim 73 → 81 passing,deploy 全过。
+> Clarify 5/6 已答:用户管理只做 list+搜+详情+备注+标签(不 ban / 不改密码);商品 Excel 7 字段 + 描述(图片后传)。
+
+- [x] **批量创建商品(Excel)**(`450aca4`,~半天):
+  - 后端 `_admin/uploadProductsXlsx`:8 列 header(商品名/品牌/规格/基础价元/英文名/快递公司/系数/描述),5 种状态(`created`/`already_exists`/`invalid`/`duplicate_in_file`/`apply_failed`),dryRun 双相,per-row try/catch,basePrice 元→cents,COURIER_ENUM 校验
+  - admin Products 页 catalog view 顶部加"Excel 批量上传"按钮(tuan-filter view 不显示,语义对齐)
+  - 沿用 Sprint 1.2 BatchShippingFeeModal 3-phase pattern
+- [x] **用户管理**(`d23b494`,~半天):
+  - 后端 `_admin/userCRUD`:list(分页 + keyword 模糊匹配 nickname/openid/groupId)+ update(白名单严格,只允许改 `adminNotes`/`adminTags`)
+  - users 文档加 `adminNotes` (string ≤500) + `adminTags` (string[] ≤10, 每条 ≤30 字)
+  - admin /users 页:Table(头像 + 昵称 + openid + 群号 + 备注 + 标签 + 订单数 + 总金额)+ filter bar + 编辑 Modal
+  - **未做**:ban / 改密码 / 解绑微信(按 backlog clarify 5 用户回答简化范围)
 
 ---
 
