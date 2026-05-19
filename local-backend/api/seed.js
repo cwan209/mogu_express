@@ -189,6 +189,69 @@ const admins = [
     username: 'dev',   passwordHash: hashPassword('dev'),   role: 'owner', createdAt: new Date() },
 ];
 
+// Sprint 2.6 优惠券 seed — 给 Luke (oSdRv3Gv4dvIaQoi38SC-WAPsH_w) 各种状态各 1 张
+// 用 _id 前缀 'coupon_seed_' 便于识别 + 重 seed 时 upsert 不会冲突
+const LUKE_OPENID = 'oSdRv3Gv4dvIaQoi38SC-WAPsH_w';
+const coupons = [
+  {
+    _id: 'coupon_seed_luke_welcome',
+    _openid: LUKE_OPENID,
+    amount: 1000,        // ¥10
+    reason: '新用户欢迎券',
+    status: 'unused',
+    validFrom: iso(-1 * DAY),
+    validTo: iso(30 * DAY),
+    createdBy: 'seed',
+    createdAt: iso(-1 * DAY),
+  },
+  {
+    _id: 'coupon_seed_luke_small',
+    _openid: LUKE_OPENID,
+    amount: 500,         // ¥5
+    reason: '小额测试券(7 天)',
+    status: 'unused',
+    validFrom: iso(0),
+    validTo: iso(7 * DAY),
+    createdBy: 'seed',
+    createdAt: iso(0),
+  },
+  {
+    _id: 'coupon_seed_luke_big',
+    _openid: LUKE_OPENID,
+    amount: 5000,        // ¥50 — 测 "coupon 大于商品金额 → 减到 0 自动 paid"
+    reason: '大额测试券 ¥50',
+    status: 'unused',
+    validFrom: iso(0),
+    validTo: iso(30 * DAY),
+    createdBy: 'seed',
+    createdAt: iso(0),
+  },
+  {
+    _id: 'coupon_seed_luke_used',
+    _openid: LUKE_OPENID,
+    amount: 2000,        // ¥20
+    reason: '已使用样例',
+    status: 'used',
+    validFrom: iso(-30 * DAY),
+    validTo: iso(30 * DAY),
+    usedOrderId: 'mp7z3trpbs50xxk3',   // staging 已有的一条历史 order
+    usedAt: iso(-3 * DAY),
+    createdBy: 'seed',
+    createdAt: iso(-10 * DAY),
+  },
+  {
+    _id: 'coupon_seed_luke_expired',
+    _openid: LUKE_OPENID,
+    amount: 300,         // ¥3
+    reason: '已过期样例(懒计算)',
+    status: 'unused',     // 故意保留 unused,validTo 在过去 → cf 读时投射成 expired
+    validFrom: iso(-60 * DAY),
+    validTo: iso(-7 * DAY),
+    createdBy: 'seed',
+    createdAt: iso(-60 * DAY),
+  },
+];
+
 async function main() {
   const client = new MongoClient(MONGO_URL, { directConnection: true });
   await client.connect();
@@ -205,6 +268,7 @@ async function main() {
     carts:      db.collection('carts'),
     orders:     db.collection('orders'),
     settings:   db.collection('settings'),
+    coupons:    db.collection('coupons'),
   };
 
   if (reset) {
@@ -223,6 +287,7 @@ async function main() {
   await upsertMany(colls.products, products);
   await upsertMany(colls.tuan_items, tuanItems);
   await upsertMany(colls.admins, admins);
+  await upsertMany(colls.coupons, coupons);
   await upsertMany(colls.settings, [{
     _id: 'home_banner',
     title: '接龙团购',
@@ -244,6 +309,8 @@ async function main() {
   await colls.orders.createIndex({ outTradeNo: 1 }, { unique: true });
   await colls.admins.createIndex({ openid: 1 });
   await colls.admins.createIndex({ username: 1 }, { unique: true });
+  await colls.coupons.createIndex({ _openid: 1, status: 1 });
+  await colls.coupons.createIndex({ validTo: 1 });
 
   console.log('[seed] done');
   console.log(`  categories: ${await colls.categories.countDocuments()}`);
@@ -251,6 +318,7 @@ async function main() {
   console.log(`  products:   ${await colls.products.countDocuments()}    (catalog)`);
   console.log(`  tuan_items: ${await colls.tuan_items.countDocuments()}`);
   console.log(`  admins:     ${await colls.admins.countDocuments()}  (user: admin / pass: admin)`);
+  console.log(`  coupons:    ${await colls.coupons.countDocuments()}    (sprint 2.6 test data, Luke)`);
 
   await client.close();
 }
