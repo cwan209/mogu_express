@@ -62,3 +62,50 @@ export async function getProduct(tuanItemId: string): Promise<Product> {
   const r = await callCloud<{ product: Product }>('getProductDetail', { tuanItemId });
   return r.product;
 }
+
+// =========== 批量创建商品 Excel (Sprint 3-1) ===========
+
+export type BatchProductStatus =
+  | 'created'
+  | 'already_exists'
+  | 'invalid'
+  | 'duplicate_in_file'
+  | 'apply_failed';
+
+export interface BatchProductRow {
+  row: number;
+  title: string;
+  fields?: {
+    title?: string;
+    brand?: string;
+    spec?: string;
+    basePrice?: number;       // cents
+    englishName?: string;
+    courierName?: string;
+    courierFactor?: number;
+    description?: string;
+  };
+  status: BatchProductStatus;
+  message?: string;
+  _id?: string;   // 成功 insert 后云函数补的 productId
+}
+
+export interface BatchProductResp {
+  code: 0;
+  rows: BatchProductRow[];
+  summary: {
+    created: number;
+    alreadyExists: number;
+    invalid: number;
+    duplicateInFile: number;
+    applied?: number;
+    applyFailed?: number;
+  };
+}
+
+export async function uploadProductsXlsx(
+  xlsxBase64: string,
+  dryRun: boolean,
+): Promise<BatchProductResp> {
+  return callCloud<BatchProductResp>('_admin/uploadProductsXlsx', { xlsxBase64, dryRun });
+}

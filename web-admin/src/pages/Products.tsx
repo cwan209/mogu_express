@@ -4,6 +4,7 @@
 // 选了团:  团内实例视图 — 加价格/库存/分组列 + 跳转到 TuanItem 编辑
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Space, Table, Popconfirm, message, Select, Tag } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Product, CatalogProduct, Tuan, Category } from '../types';
 import { listCatalog, listProducts, deleteProduct } from '../api/product';
@@ -11,6 +12,7 @@ import { deleteTuanItem } from '../api/tuanItem';
 import { listTuans } from '../api/tuan';
 import { listCategories } from '../api/category';
 import { formatAud } from '../utils/money';
+import BatchProductUploadModal from './BatchProductUploadModal';
 
 type Row = Product | (CatalogProduct & { tuanItemId?: string; price?: number; stock?: number; sold?: number; section?: string | null; tuanId?: string });
 
@@ -24,6 +26,7 @@ export default function Products() {
   const [cats, setCats] = useState<Category[]>([]);
   const [allItems, setAllItems] = useState<Product[]>([]);    // 用于统计"在 N 个团中使用"
   const [loading, setLoading] = useState(false);
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -70,6 +73,7 @@ export default function Products() {
   const isTuanView = !!tuanIdFilter;
 
   return (
+    <>
     <Card
       title={isTuanView ? `团内商品 · ${tuanTitle(tuanIdFilter!)}` : '商品库'}
       extra={
@@ -82,6 +86,11 @@ export default function Products() {
             onChange={(v) => { if (v) setSp({ tuanId: v }); else setSp({}); }}
             options={tuans.map((t) => ({ value: t._id, label: t.title }))}
           />
+          {!isTuanView && (
+            <Button icon={<UploadOutlined />} onClick={() => setBatchModalOpen(true)}>
+              Excel 批量上传
+            </Button>
+          )}
           <Button type="primary" onClick={() => nav('/products/new' + (tuanIdFilter ? `?tuanId=${tuanIdFilter}` : ''))}>
             {isTuanView ? '向此团添加' : '新建商品'}
           </Button>
@@ -139,5 +148,11 @@ export default function Products() {
         ]}
       />
     </Card>
+    <BatchProductUploadModal
+      open={batchModalOpen}
+      onClose={() => setBatchModalOpen(false)}
+      onApplied={load}
+    />
+    </>
   );
 }

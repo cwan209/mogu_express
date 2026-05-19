@@ -200,6 +200,16 @@ async function makeTestXlsx(rows) {
   return Buffer.from(buf).toString('base64');
 }
 
+async function makeTestProductsXlsx(rows) {
+  // rows: [[商品名, 品牌, 规格, 基础价元, 英文名, 快递公司, 系数, 描述], ...]
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('商品');
+  ws.addRow(['商品名', '品牌', '规格', '基础价(元)', '英文名', '快递公司', '系数', '描述']);
+  rows.forEach((r) => ws.addRow(r));
+  const buf = await wb.xlsx.writeBuffer();
+  return Buffer.from(buf).toString('base64');
+}
+
 // ════════════════════════════════════════════
 // Tests
 // ════════════════════════════════════════════
@@ -1233,6 +1243,86 @@ test('_admin/uploadShippingFeesXlsx header 错乱拒', async () => {
   const xlsxBase64 = Buffer.from(buf).toString('base64');
   const r = await requireCf('_admin/uploadShippingFeesXlsx').main({ xlsxBase64, dryRun: true }, {});
   assert.equal(r.code, 2, `expected code 2 for bad header, got: ${JSON.stringify(r)}`);
+});
+
+// ── 批量创建商品 Excel (Sprint 3-1) ──
+
+test('_admin/uploadProductsXlsx dryRun 覆盖 5 种状态', async () => {
+  reset({
+    products: [{ _id: 'prod_OLD', title: '已存在商品', coverFileId: '', imageFileIds: [], categoryIds: [], description: '' }],
+    admins: [{ openid: 'admin1', username: 'admin' }],
+  });
+  shim.__setContext({ OPENID: 'admin1' });
+  const xlsxBase64 = await makeTestProductsXlsx([
+    ['新商品 A', '品牌A', '500g', 35.50, 'New A', '顺丰', 1.2, ''],
+    ['已存在商品', '', '', 10, '', '', '', ''],
+    ['新商品 A', '', '', 10, '', '', '', ''],     // duplicate in file
+    ['', '', '', 10, '', '', '', ''],             // invalid: empty title
+    ['新商品 B', '', '', 10, '', '顺什么牌', '', ''], // invalid: bad courier
+  ]);
+  const r = await requireCf('_admin/uploadProductsXlsx').main({ xlsxBase64, dryRun: true }, {});
+  assert.equal(r.code, 0, `expected code 0, got ${JSON.stringify(r)}`);
+  assert.equal(r.rows.length, 5);
+  assert.equal(r.rows[0].status, 'created');
+  assert.equal(r.rows[1].status, 'already_exists');
+  assert.equal(r.rows[2].status, 'duplicate_in_file');
+  assert.equal(r.rows[3].status, 'invalid');
+  assert.equal(r.rows[4].status, 'invalid');
+  assert.equal(r.summary.created, 1);
+  assert.equal(r.summary.alreadyExists, 1);
+  assert.equal(r.summary.duplicateInFile, 1);
+  assert.equal(r.summary.invalid, 2);
+  assert.equal(r.summary.applied, undefined, 'dryRun should not commit');
+  // 验证 db 未被写入
+  const list = await shim.database().collection('products').where({ title: '新商品 A' }).get();
+  assert.equal(list.data.length, 0, 'dryRun should not insert products');
+});
+
+test('_admin/uploadProductsXlsx apply 只写 created 行 + basePrice 转 cents', async () => {
+  reset({ admins: [{ openid: 'admin1', username: 'admin' }] });
+  shim.__setContext({ OPENID: 'admin1' });
+  const xlsxBase64 = await makeTestProductsXlsx([
+    ['澳洲牛肉', '澳乳', '500g', 35.50, 'AU Beef', '顺丰', 1.5, '冷链直邮'],
+  ]);
+  const r = await requireCf('_admin/uploadProductsXlsx').main({ xlsxBase64, dryRun: false }, {});
+  assert.equal(r.code, 0);
+  assert.equal(r.summary.applied, 1);
+  const list = await shim.database().collection('products').where({ title: '澳洲牛肉' }).get();
+  assert.equal(list.data.length, 1);
+  const p = list.data[0];
+  assert.equal(p.basePrice, 3550, '35.50 × 100 = 3550 cents');
+  assert.equal(p.brand, '澳乳');
+  assert.equal(p.spec, '500g');
+  assert.equal(p.englishName, 'AU Beef');
+  assert.equal(p.courierName, '顺丰');
+  assert.equal(p.courierFactor, 1.5);
+  assert.equal(p.description, '冷链直邮');
+  assert.equal(p.coverFileId, '', 'cover 留空,admin 后续单独上传');
+  assert.deepEqual(p.secondaryImages, []);
+  assert.deepEqual(p.imageFileIds, []);
+  assert.deepEqual(p.categoryIds, []);
+});
+
+test('_admin/uploadProductsXlsx 非 admin 拒', async () => {
+  reset({ admins: [] });
+  shim.__setContext({ OPENID: 'not_admin' });
+  const xlsxBase64 = await makeTestProductsXlsx([['T', '', '', '', '', '', '', '']]);
+  const r = await requireCf('_admin/uploadProductsXlsx').main({ xlsxBase64, dryRun: true }, {});
+  assert.equal(r.code, 403);
+});
+
+test('_admin/uploadProductsXlsx header 错乱拒', async () => {
+  reset({ admins: [{ openid: 'admin1', username: 'admin' }] });
+  shim.__setContext({ OPENID: 'admin1' });
+  // 3 列 — 缺"商品名"
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('商品');
+  ws.addRow(['品牌', '规格', '基础价(元)']);
+  ws.addRow(['Brand', 'Spec', 10]);
+  const buf = await wb.xlsx.writeBuffer();
+  const xlsxBase64 = Buffer.from(buf).toString('base64');
+  const r = await requireCf('_admin/uploadProductsXlsx').main({ xlsxBase64, dryRun: true }, {});
+  assert.equal(r.code, 2, `expected code 2 for missing 商品名 header, got: ${JSON.stringify(r)}`);
 });
 
 // ── 首页 Swiper 滚动 banner: announcements ──
