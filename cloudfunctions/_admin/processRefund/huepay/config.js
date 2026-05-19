@@ -1,17 +1,18 @@
 // _lib/huepay/config.js
-// HuePay 接入配置。所有值从环境变量读,支持 stub 模式。
 //
-// 真实上线时,在云函数"环境变量"或部署环境(Docker/VPS)里设置:
-//   HUEPAY_STUB=0
-//   HUEPAY_API_BASE=https://api.huepay.com.au   (示例,需以真实文档为准)
-//   HUEPAY_MERCHANT_ID=<商户号>
-//   HUEPAY_APP_ID=<小程序应用 ID>
-//   HUEPAY_API_KEY=<API Key>
-//   HUEPAY_SECRET=<密钥,用于签名>
-//   HUEPAY_SIGN_ALGO=HMAC-SHA256  (当前假设;HuePay 文档到位后确认)
-//   HUEPAY_NOTIFY_URL=https://your-domain/cloud/payCallback
+// 真 HuePay 接入配置(2026.05 文档对齐版本)。
+// 2-stage auth: GET /authorize 拿 JWT → 业务 POST 用 Bearer。
 //
-// 测试/开发阶段保持 stub=1 就能跑完完整流程,不需要任何真实凭证。
+// Env vars (.env 通过 docker-compose 注入):
+//   HUEPAY_STUB=0|1                    stub 模式(默认 1, prod 上线切 0)
+//   HUEPAY_ENV=prod|uat                决定 gw URL(默认 uat, 上线手动切 prod)
+//   HUEPAY_ACCESS_CODE=<32 char>       Huepay 分配的 X-AccessCode
+//   HUEPAY_SECRET_KEY=<2048 char>      Huepay 分配的 X-SecretKey,亦作签名密钥
+//   HUEPAY_NOTIFY_URL=https://api.../cloud/payCallback   异步通知地址
+//   HUEPAY_CURRENCY=AUD                收单币种(HuePay 当前只支持 AUD)
+//
+// 旧 env(MERCHANT_ID/APP_ID/API_KEY/SECRET/SIGN_ALGO/API_BASE)已废弃,
+// 部署时若仍设置不会读取,推荐从 docker-compose 删除。
 
 function envBool(name, defVal) {
   const v = process.env[name];
@@ -19,26 +20,35 @@ function envBool(name, defVal) {
   return v === '1' || v.toLowerCase() === 'true';
 }
 
+const ENV = (process.env.HUEPAY_ENV || 'uat').toLowerCase();
+
+const URL_BASES = {
+  prod: { auth: 'https://gw.huepay.com.au/authorize',    api: 'https://gw.huepay.com.au/api' },
+  uat:  { auth: 'https://uatgw.huepay.com.au/authorize', api: 'https://uatgw.huepay.com.au/api' },
+};
+
+const bases = URL_BASES[ENV] || URL_BASES.uat;
+
 const config = {
   // stub=true 时:SDK 返回假数据,绕过真实 HTTP 请求
   stub: envBool('HUEPAY_STUB', true),
+  env: ENV,
 
-  apiBase:    process.env.HUEPAY_API_BASE    || 'https://api.huepay.com.au',
-  merchantId: process.env.HUEPAY_MERCHANT_ID || 'STUB_MERCHANT',
-  appId:      process.env.HUEPAY_APP_ID      || 'STUB_APPID',
-  apiKey:     process.env.HUEPAY_API_KEY     || 'STUB_APIKEY',
-  secret:     process.env.HUEPAY_SECRET      || 'STUB_SECRET_REPLACE_ME',
-  signAlgo:   process.env.HUEPAY_SIGN_ALGO   || 'HMAC-SHA256',
+  // 两个 base 是分开的:authorize 不带 /api;业务全在 /api 下
+  authUrl:  process.env.HUEPAY_AUTH_URL || bases.auth,
+  apiBase:  process.env.HUEPAY_API_BASE || bases.api,
+
+  accessCode: process.env.HUEPAY_ACCESS_CODE || 'STUB_ACCESS_CODE',
+  secretKey:  process.env.HUEPAY_SECRET_KEY  || 'STUB_SECRET_KEY',
   notifyUrl:  process.env.HUEPAY_NOTIFY_URL  || 'http://localhost:4000/cloud/payCallback',
-  currency:   process.env.HUEPAY_CURRENCY    || 'CNY',
 
-  // 支付渠道(wechat / alipay / card)
-  defaultChannel: 'wechat',
-  // 子渠道(wechat jsapi / alipay h5 等)
-  defaultTradeType: 'JSAPI',
+  // HuePay 当前规范只支持 AUD,留 env 以便将来支持
+  currency:   process.env.HUEPAY_CURRENCY    || 'AUD',
 
-  // 请求超时(毫秒)
-  timeoutMs: 20000,
+  // 请求超时
+  timeoutMs:  20000,
+  // Token cache:剩余有效期低于此时刷新
+  tokenRefreshSkewMs: 60 * 1000,
 };
 
 module.exports = config;

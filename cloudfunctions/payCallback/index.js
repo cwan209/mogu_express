@@ -17,16 +17,49 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 
-// 云开发 HTTP 触发器:event 是解析后的 body;若是 { body: '...', ... } 这种网关结构,取 body
+// 云开发 HTTP 触发器 / Express 网关:event 形态有几种,统一抽出 parsed body + rawBody + headers
+//   - 云开发原生触发器:event 已是解析后的 body 对象(无 headers / rawBody)
+//   - HTTP 触发器(网关):event 形如 { body: '<str>', headers: {...}, ... }
+//   - Express 转发:server.js 把 { ...body, headers, rawBody, __envelope: true } 注入
 function extractBody(event) {
   if (event && event.body != null && typeof event.body === 'string') {
     try { return JSON.parse(event.body); } catch { return null; }
   }
+  if (event && event.__envelope === true) {
+    // Express 把 body 字段平铺,headers/rawBody 单独抽
+    const { headers, rawBody, __envelope, ...rest } = event;
+    return rest;
+  }
   return event;
+}
+
+function extractHeaders(event) {
+  if (!event) return {};
+  if (event.headers && typeof event.headers === 'object') return event.headers;
+  return {};
+}
+
+function extractRawBody(event) {
+  if (!event) return null;
+  if (typeof event.rawBody === 'string') return event.rawBody;
+  if (typeof event.body === 'string') return event.body;
+  return null;
+}
+
+function getHeader(headers, name) {
+  if (!headers) return null;
+  const lower = name.toLowerCase();
+  for (const k of Object.keys(headers)) {
+    if (k.toLowerCase() === lower) return headers[k];
+  }
+  return null;
 }
 
 exports.main = async (event) => {
   const body = extractBody(event);
+  const headers = extractHeaders(event);
+  const rawBody = extractRawBody(event);
+  const headerSig = getHeader(headers, 'X-Signature');
   console.log('[payCallback] incoming:', JSON.stringify(body));
 
   // 落日志(不管成功失败都记一条)
@@ -45,25 +78,32 @@ exports.main = async (event) => {
     console.warn('[payCallback] log failed:', err.message);
   }
 
-  // 验签 + 解析
-  const verified = huepay.verifyCallback(body);
+  // 验签 + 解析(envelope 契约:rawBody + headerSignature + parsed)
+  const verified = huepay.verifyCallback({
+    rawBody,
+    headerSignature: headerSig,
+    parsed: body,
+  });
   if (!verified.valid) {
     console.error('[payCallback] verify failed:', verified.reason);
     await updateLog(logId, { result: 'bad_sign', reason: verified.reason });
-    return { code: 401, message: 'invalid signature' };
+    // 即便验签失败也回 200,避免 HuePay 24h 内 18 次重试浪费资源(已记日志可人工查)
+    return { code: 0, message: 'logged', verifyError: verified.reason };
   }
 
   const { outTradeNo, transactionId, paidAt, amount, status } = verified;
   if (!outTradeNo) {
     await updateLog(logId, { result: 'bad_payload' });
-    return { code: 400, message: 'missing out_trade_no' };
+    return { code: 0, message: 'logged' };  // 仍 200 防重试
   }
 
   // 非"支付成功"状态直接记录不动订单
-  if (status && status !== 'SUCCESS' && status !== 'PAID') {
+  // HuePay status: SUCCEED (paid) / SUCCESS / PAID(向后兼容)/ FAILED(失败)/ PENDING
+  const STATUS_PAID = ['SUCCEED', 'SUCCESS', 'PAID'];
+  if (status && !STATUS_PAID.includes(status)) {
     console.log(`[payCallback] ${outTradeNo} status=${status},不更新订单`);
     await updateLog(logId, { result: 'ignored', status });
-    return { code: 0, message: 'ok' };  // 仍返 ACK 让 HuePay 停止重试
+    return { code: 0, message: 'ok' };
   }
 
   // 按 outTradeNo 前缀路由:
@@ -79,7 +119,8 @@ exports.main = async (event) => {
     if (!shipOrder) {
       console.warn('[payCallback] SHIP outTradeNo no match:', outTradeNo);
       await updateLog(logId, { result: 'ship_order_not_found', outTradeNo });
-      return { code: 404, message: 'order not found by SHIP outTradeNo' };
+      // 200 让 HuePay 停止重试(订单已不存在,重试无意义)
+      return { code: 0, message: 'logged' };
     }
 
     // 幂等:运费已 paid 直接 ACK
@@ -97,7 +138,8 @@ exports.main = async (event) => {
         expected: shipOrder.shippingFee.amount,
         got: amount,
       });
-      return { code: 409, message: 'amount mismatch' };
+      // 200 让 HuePay 停止重试(金额异常应人工查,不该重试)
+      return { code: 0, message: 'logged' };
     }
 
     const shipNow = new Date();
@@ -126,7 +168,8 @@ exports.main = async (event) => {
   const order = orderRes.data && orderRes.data[0];
   if (!order) {
     await updateLog(logId, { result: 'order_not_found', outTradeNo });
-    return { code: 404, message: 'order not found' };
+    // 200 让 HuePay 停止重试(订单不存在,重试也找不到)
+    return { code: 0, message: 'logged' };
   }
 
   if (order.payStatus === 'paid') {
@@ -139,7 +182,8 @@ exports.main = async (event) => {
   if (amount != null && Number(amount) !== order.amount) {
     console.error(`[payCallback] amount mismatch: expect ${order.amount}, got ${amount}`);
     await updateLog(logId, { result: 'amount_mismatch', expected: order.amount, got: amount });
-    return { code: 409, message: 'amount mismatch' };
+    // 200 让 HuePay 停止重试(金额对不上要人工查,不能让钱进错单)
+    return { code: 0, message: 'logged' };
   }
 
   // 更新订单 + 累加 product.participantCount + 写 participant_index

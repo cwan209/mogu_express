@@ -50,6 +50,7 @@ const LIBS = [
     targets: [
       'cloudfunctions/createOrder',
       'cloudfunctions/payCallback',
+      'cloudfunctions/payShipping',
       'cloudfunctions/queryHuepayOrder',
       'cloudfunctions/_dev/simulatePay',
       'cloudfunctions/_admin/processRefund',

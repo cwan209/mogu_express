@@ -122,7 +122,13 @@ async function main() {
 
   const app = express();
   app.use(cors({ origin: true, credentials: true }));
-  app.use(express.json({ limit: '10mb' }));
+  // 用 verify hook 捕获原始 body 字符串(payCallback 需要它做 HuePay 签名校验)
+  app.use(express.json({
+    limit: '10mb',
+    verify: (req, _res, buf) => {
+      if (buf && buf.length) req.rawBody = buf.toString('utf8');
+    },
+  }));
 
   // /health 给 uptime monitor (UptimeRobot) + LB healthcheck 用。
   // 真 ping 一下 mongo,任何 5xx 都让外部监控可见(不能糊弄)。
@@ -191,8 +197,20 @@ async function main() {
       return res.status(500).json({ code: 500, message: 'failed to load: ' + err.message });
     }
 
+    // payCallback 需要 raw body 和 headers 做 HuePay 签名校验,
+    // 用 envelope 形态平铺业务字段 + 附 headers/rawBody/__envelope 标记。
+    // 其它云函数仍收纯 body 对象(向后兼容)。
+    const event = (name === 'payCallback')
+      ? {
+          ...(req.body || {}),
+          headers: req.headers || {},
+          rawBody: req.rawBody || null,
+          __envelope: true,
+        }
+      : (req.body || {});
+
     try {
-      const result = await mod.main(req.body || {}, { openid });
+      const result = await mod.main(event, { openid });
       res.json(result);
     } catch (err) {
       console.error(`[cf-exec] ${name}`, err);

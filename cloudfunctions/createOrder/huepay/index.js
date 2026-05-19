@@ -1,7 +1,11 @@
-// _lib/huepay/index.js - HuePay SDK
+// _lib/huepay/index.js - HuePay SDK (真接入对齐版本, 2026.05)
+//
+// Two-stage auth:
+//   stage 1: GET /authorize  with X-AccessCode + X-SecretKey  →  JWT
+//   stage 2: POST /api/...   with X-AccessCode + Authorization: Bearer + X-Signature
 //
 // 暴露:
-//   createOrder({ outTradeNo, amount, body, openid, clientIp?, notifyUrl?, metadata? })
+//   createOrder({ outTradeNo, amount, body, openid, clientIp?, notifyUrl?, returnUrl?, expireMinutes?, metadata? })
 //     → { payParams, raw }   — payParams 传给小程序 wx.requestPayment
 //
 //   queryOrder({ outTradeNo })
@@ -10,100 +14,150 @@
 //   refund({ outTradeNo, refundNo, refundAmount, reason? })
 //     → { success, refundId, raw }
 //
-//   verifyCallback(body)
-//     → { valid, outTradeNo, transactionId, paidAt, amount, raw }
+//   verifyCallback({ rawBody, headerSignature, parsed })
+//     → { valid, outTradeNo, transactionId, paidAt, amount, status, raw }
 //
-// Stub 模式下所有方法返回假数据,通过 __stub: true 标记,业务代码可据此决定走"模拟支付成功"路径。
-// 真实模式下发真实 HTTP 到 config.apiBase。接入 HuePay 时只需核对端点路径和字段名。
+//   (向后兼容)verifyCallback(parsedBody)  — 没有 envelope 时当 stub/local 路径,跳过签名校验
+//
+// Stub 模式下所有方法返回假数据,通过 __stub: true 标记,业务代码据此走"模拟支付"路径。
 
 const https = require('https');
 const http = require('http');
 const { URL } = require('url');
+const { randomUUID } = require('crypto');
 const config = require('./config.js');
 const { sign, verify, nonce } = require('./sign.js');
 
-// ---------- HTTP 工具 ----------
-function httpPost(urlStr, body, timeoutMs) {
+// ========================================================
+// HTTP 工具 (GET + POST)
+// ========================================================
+function httpRequest(method, urlStr, opts) {
   return new Promise((resolve, reject) => {
     const u = new URL(urlStr);
-    const client = u.protocol === 'https:' ? https : http;
-    const data = Buffer.from(JSON.stringify(body));
-    const req = client.request(
-      {
-        hostname: u.hostname,
-        port: u.port || (u.protocol === 'https:' ? 443 : 80),
-        path: u.pathname + u.search,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': data.length,
-          'Accept': 'application/json',
-        },
-        timeout: timeoutMs || 20000,
+    const lib = u.protocol === 'https:' ? https : http;
+    const body = opts.body ? Buffer.from(opts.body, 'utf8') : null;
+    const reqOpts = {
+      hostname: u.hostname,
+      port: u.port || (u.protocol === 'https:' ? 443 : 80),
+      path: u.pathname + (u.search || ''),
+      method,
+      headers: {
+        'Accept': 'application/json',
+        ...(body ? { 'Content-Length': body.length } : {}),
+        ...(opts.headers || {}),
       },
-      (res) => {
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => {
-          const text = Buffer.concat(chunks).toString('utf8');
-          let parsed;
-          try { parsed = JSON.parse(text); } catch { parsed = { raw: text }; }
-          if (res.statusCode >= 400) {
-            const err = new Error(`HTTP ${res.statusCode}`);
-            err.status = res.statusCode;
-            err.body = parsed;
-            return reject(err);
-          }
-          resolve(parsed);
-        });
-      }
-    );
+      timeout: opts.timeoutMs || config.timeoutMs,
+    };
+    const req = lib.request(reqOpts, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { parsed = { raw: text }; }
+        if (res.statusCode >= 400) {
+          const err = new Error(`HTTP ${res.statusCode}: ${text.slice(0, 200)}`);
+          err.status = res.statusCode;
+          err.body = parsed;
+          return reject(err);
+        }
+        resolve(parsed);
+      });
+    });
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(new Error('request timeout')); });
-    req.write(data);
+    if (body) req.write(body);
     req.end();
   });
 }
 
-// ---------- 请求封装 ----------
-// 统一:加公共字段 + 签名,返回解析后的 body
-async function callApi(path, bizParams) {
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    merchant_id: config.merchantId,
-    app_id: config.appId,
-    api_key: config.apiKey,
-    nonce_str: nonce(),
-    timestamp: now,
-    ...bizParams,
-  };
-  payload.sign = sign(payload, config.secret, config.signAlgo);
+// ========================================================
+// Token cache (in-memory; cf cold start 自动重新拿)
+// ========================================================
+let _cachedToken = null;
+let _cachedExpireAtMs = 0;
 
-  return httpPost(config.apiBase + path, payload, config.timeoutMs);
+async function getToken() {
+  if (config.stub) {
+    // stub 模式不真拿,每次返回一个假 token,业务代码不会用到
+    return 'STUB_TOKEN_' + Date.now();
+  }
+  const now = Date.now();
+  if (_cachedToken && now < _cachedExpireAtMs - config.tokenRefreshSkewMs) {
+    return _cachedToken;
+  }
+  const resp = await httpRequest('GET', config.authUrl, {
+    headers: {
+      'X-AccessCode': config.accessCode,
+      'X-SecretKey':  config.secretKey,
+    },
+  });
+  if (!resp || resp.code !== '00000000') {
+    const err = new Error(`authorize failed: ${resp && resp.code} ${resp && resp.msg}`);
+    err.code = resp && resp.code;
+    err.raw = resp;
+    throw err;
+  }
+  _cachedToken = resp.data.token;
+  _cachedExpireAtMs = now + (Number(resp.data.expireIn) || 7200) * 1000;
+  return _cachedToken;
+}
+
+/** 测试用:重置 token 缓存 */
+function _resetTokenCache() {
+  _cachedToken = null;
+  _cachedExpireAtMs = 0;
 }
 
 // ========================================================
-// Public API
+// 业务 POST 通用封装(带签名)
 // ========================================================
+async function callApi(path, bizParams) {
+  const jsonBody = JSON.stringify(bizParams);
+  const token = await getToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-AccessCode': config.accessCode,
+    'Authorization': 'Bearer ' + token,
+    'X-Signature': sign(jsonBody, config.secretKey),
+  };
+  return httpRequest('POST', config.apiBase + path, { body: jsonBody, headers });
+}
 
-/**
- * 下单
- * @returns {Promise<{ payParams: object, raw: object }>}
- *   payParams 直接传给小程序的 wx.requestPayment
- */
-async function createOrder({ outTradeNo, amount, body, openid, clientIp, notifyUrl, metadata }) {
+// ========================================================
+// ISO 8601 with offset (HuePay sample: 2026-05-19T18:00:00+0800, 无冒号)
+// ========================================================
+function isoWithOffset(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const MM = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const HH = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  const offMin = -d.getTimezoneOffset();  // 东 +
+  const s = offMin >= 0 ? '+' : '-';
+  const oh = pad(Math.floor(Math.abs(offMin) / 60));
+  const om = pad(Math.abs(offMin) % 60);
+  return `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}${s}${oh}${om}`;
+}
+
+// ========================================================
+// Public: createOrder (JSAPI)
+// ========================================================
+async function createOrder({ outTradeNo, amount, body, openid, clientIp, notifyUrl, returnUrl, expireMinutes, metadata }) {
   if (!outTradeNo) throw new Error('outTradeNo required');
   if (!amount || amount <= 0) throw new Error('amount must be > 0');
+  if (!openid) throw new Error('openid required for JSAPI');
 
   if (config.stub) {
-    // Stub 模式:返回带 __stub 标记的 payParams,业务代码走"模拟支付"路径
     return {
       payParams: {
         __stub: true,
         timeStamp: String(Math.floor(Date.now() / 1000)),
         nonceStr: nonce(),
         package: `prepay_id=STUB_${outTradeNo}`,
-        signType: 'HMAC-SHA256',
+        signType: 'RSA',
         paySign: 'STUB_PAY_SIGN',
       },
       raw: {
@@ -111,58 +165,74 @@ async function createOrder({ outTradeNo, amount, body, openid, clientIp, notifyU
         outTradeNo,
         amount,
         currency: config.currency,
-        note: 'HuePay stub — real integration 待凭证到位',
+        openid,
+        note: 'HuePay stub — set HUEPAY_STUB=0 for real call',
       },
     };
   }
 
-  // 真实模式:路径和字段名**以 HuePay 文档为准**,目前是通用聚合支付的猜想
-  const resp = await callApi('/api/v1/orders/create', {
-    out_trade_no: outTradeNo,
-    amount,                      // 整数分
-    currency: config.currency,
-    body: (body || '').slice(0, 128),
-    openid,
-    client_ip: clientIp || '127.0.0.1',
-    notify_url: notifyUrl || config.notifyUrl,
-    channel: config.defaultChannel,
-    trade_type: config.defaultTradeType,
-    metadata: metadata || undefined,
-  });
+  const expireTime = isoWithOffset(new Date(Date.now() + (expireMinutes || 30) * 60 * 1000));
 
-  if (resp.code !== 0 && resp.code !== '0' && resp.code !== 'SUCCESS') {
-    const err = new Error(resp.message || 'HuePay createOrder failed');
-    err.code = resp.code;
+  const reqBody = {
+    requestId: randomUUID(),
+    transactionOrderId: outTradeNo,
+    amount: String(amount),                          // STRING in cents
+    currency: config.currency,
+    returnUrl: returnUrl || undefined,
+    notificationUrl: notifyUrl || config.notifyUrl,
+    expireTime,
+    paymentMethod: {
+      methodType: 'WECHATPAY',
+      wechatpay: {
+        acceptance: 'JSAPI',
+        sponId: openid,
+      },
+    },
+    products: [{ name: (body || 'order').slice(0, 128) }],
+  };
+
+  const resp = await callApi('/acquire/payment/create', reqBody);
+  if (!resp || resp.code !== '00000000') {
+    const err = new Error(`createOrder ${resp && resp.code}: ${resp && resp.msg}`);
+    err.code = resp && resp.code;
     err.raw = resp;
     throw err;
   }
 
-  // HuePay 假设返回 data:{prepay_id, app_id, timestamp, nonce_str, package, sign_type, pay_sign}
-  const d = resp.data || {};
+  // resp.data.nextAction.sdkData 是 JSON 编码的 STRING
+  const data = resp.data || {};
+  const nextAction = data.nextAction || {};
+  let sdkData = {};
+  if (nextAction.sdkData) {
+    try { sdkData = JSON.parse(nextAction.sdkData); }
+    catch (e) { console.warn('[huepay] sdkData parse failed:', e.message, nextAction.sdkData); }
+  }
   return {
     payParams: {
-      timeStamp: String(d.timestamp || Math.floor(Date.now() / 1000)),
-      nonceStr: d.nonce_str || nonce(),
-      package: d.package || `prepay_id=${d.prepay_id}`,
-      signType: d.sign_type || 'HMAC-SHA256',
-      paySign: d.pay_sign,
+      timeStamp: String(sdkData.timestamp || sdkData.timeStamp || Math.floor(Date.now() / 1000)),
+      nonceStr: sdkData.nonceStr || sdkData.nonce_str || nonce(),
+      package: sdkData.package || ('prepay_id=' + (data.transactionId || '')),
+      signType: sdkData.signType || sdkData.sign_type || 'RSA',  // JSAPI 微信通常 RSA
+      paySign: sdkData.paySign || sdkData.pay_sign,
     },
     raw: resp,
   };
 }
 
-/**
- * 查单
- */
+// ========================================================
+// Public: queryOrder
+//
+// 文档里"查询订单"端点字段还未单独给到,沿用 /acquire/payment 命名约定先填。
+// 上线前若 HuePay 给的查询接口路径不同,改这两个常量即可。
+// ========================================================
 async function queryOrder({ outTradeNo }) {
   if (!outTradeNo) throw new Error('outTradeNo required');
 
   if (config.stub) {
-    // Stub:50% 概率"已支付",便于测试两种分支
     const paid = Math.random() < 0.5;
     return {
       paid,
-      status: paid ? 'SUCCESS' : 'NOTPAY',
+      status: paid ? 'SUCCEED' : 'PENDING',
       transactionId: paid ? 'STUB_TX_' + outTradeNo : null,
       paidAt: paid ? new Date().toISOString() : null,
       amount: null,
@@ -170,22 +240,32 @@ async function queryOrder({ outTradeNo }) {
     };
   }
 
-  const resp = await callApi('/api/v1/orders/query', { out_trade_no: outTradeNo });
+  const reqBody = { transactionOrderId: outTradeNo };
+  const resp = await callApi('/acquire/payment/query', reqBody);
+  if (!resp || resp.code !== '00000000') {
+    const err = new Error(`queryOrder ${resp && resp.code}: ${resp && resp.msg}`);
+    err.code = resp && resp.code;
+    err.raw = resp;
+    throw err;
+  }
   const d = resp.data || {};
-  const paid = d.status === 'SUCCESS' || d.status === 'PAID';
+  const status = (d.status || '').toUpperCase();
+  const paid = status === 'SUCCEED' || status === 'SUCCESS' || status === 'PAID';
   return {
     paid,
     status: d.status,
-    transactionId: d.transaction_id || null,
-    paidAt: d.paid_at || null,
-    amount: d.amount || null,
+    transactionId: d.transactionId || null,
+    paidAt: d.paidAt || d.payTime || null,
+    amount: d.amount != null ? Number(d.amount) : null,
     raw: resp,
   };
 }
 
-/**
- * 退款
- */
+// ========================================================
+// Public: refund
+//
+// 同上,退款端点路径待文档确认;按命名约定先写 /acquire/payment/refund。
+// ========================================================
 async function refund({ outTradeNo, refundNo, refundAmount, reason }) {
   if (!outTradeNo || !refundNo || !refundAmount) {
     throw new Error('outTradeNo, refundNo, refundAmount required');
@@ -199,60 +279,78 @@ async function refund({ outTradeNo, refundNo, refundAmount, reason }) {
     };
   }
 
-  const resp = await callApi('/api/v1/refunds/create', {
-    out_trade_no: outTradeNo,
-    refund_no: refundNo,
-    refund_amount: refundAmount,
+  const reqBody = {
+    requestId: randomUUID(),
+    transactionOrderId: outTradeNo,
+    refundOrderId: refundNo,
+    refundAmount: String(refundAmount),
+    currency: config.currency,
     reason: reason || '',
-  });
-
-  if (resp.code !== 0 && resp.code !== '0' && resp.code !== 'SUCCESS') {
-    const err = new Error(resp.message || 'HuePay refund failed');
+  };
+  const resp = await callApi('/acquire/payment/refund', reqBody);
+  if (!resp || resp.code !== '00000000') {
+    const err = new Error(`refund ${resp && resp.code}: ${resp && resp.msg}`);
+    err.code = resp && resp.code;
     err.raw = resp;
     throw err;
   }
-
   const d = resp.data || {};
-  return { success: true, refundId: d.refund_id || null, raw: resp };
+  return { success: true, refundId: d.transactionId || d.refundId || null, raw: resp };
 }
 
-/**
- * 验证 HuePay 异步回调的签名和业务数据,返回标准化结构
- * @param {object} body - HuePay POST 过来的原始 JSON body
- */
-function verifyCallback(body) {
-  if (!body || typeof body !== 'object') {
+// ========================================================
+// Public: verifyCallback
+//
+// 新契约: ({ rawBody, headerSignature, parsed }) — rawBody+headerSignature 用来对签
+// 老契约: (parsedBody) — 仅 stub/local 路径(simulatePay 内部模拟回调),跳过签名
+// ========================================================
+function verifyCallback(input) {
+  // 兼容:无 envelope 时把入参当 parsed 直接看
+  let rawBody, headerSignature, parsed;
+  if (input && typeof input === 'object' && ('rawBody' in input || 'headerSignature' in input || 'parsed' in input)) {
+    rawBody = input.rawBody;
+    headerSignature = input.headerSignature;
+    parsed = input.parsed;
+  } else {
+    parsed = input;
+    rawBody = null;
+    headerSignature = null;
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
     return { valid: false, reason: 'empty body' };
   }
 
-  // Stub:接受任何带 __stub 标记的回调
-  if (config.stub && body.__stub) {
+  // Stub 模式:接受任何带 __stub 的 body(测试/dev/simulatePay 用)
+  if (config.stub && parsed.__stub) {
     return {
       valid: true,
-      outTradeNo: body.out_trade_no || body.outTradeNo,
-      transactionId: body.transaction_id || body.transactionId || 'STUB_TX',
-      paidAt: body.paid_at || new Date().toISOString(),
-      amount: body.amount,
-      status: 'SUCCESS',
-      raw: body,
+      outTradeNo: parsed.transactionOrderId || parsed.outTradeNo || parsed.out_trade_no,
+      transactionId: parsed.transactionId || parsed.transaction_id || 'STUB_TX',
+      paidAt: parsed.paidAt || parsed.paid_at || new Date().toISOString(),
+      amount: parsed.amount != null ? Number(parsed.amount) : null,
+      status: (parsed.status || 'SUCCESS').toUpperCase(),
+      raw: parsed,
     };
   }
 
-  // 验签
-  if (!verify(body, config.secret, config.signAlgo)) {
-    return { valid: false, reason: 'bad signature', raw: body };
+  // 真实模式:必须有 rawBody + X-Signature header,否则拒
+  if (!rawBody || !headerSignature) {
+    return { valid: false, reason: 'missing rawBody or X-Signature header', raw: parsed };
+  }
+  if (!verify(rawBody, headerSignature, config.secretKey)) {
+    return { valid: false, reason: 'bad signature', raw: parsed };
   }
 
-  // 字段白名单(HuePay 文档确认后核对)
-  const status = body.status || body.trade_status;
+  const status = (parsed.status || '').toUpperCase();
   return {
     valid: true,
-    outTradeNo: body.out_trade_no,
-    transactionId: body.transaction_id || null,
-    paidAt: body.paid_at || null,
-    amount: body.amount,
+    outTradeNo: parsed.transactionOrderId,
+    transactionId: parsed.transactionId || null,
+    paidAt: parsed.paidAt || parsed.payTime || null,
+    amount: parsed.amount != null ? Number(parsed.amount) : null,
     status,
-    raw: body,
+    raw: parsed,
   };
 }
 
@@ -261,7 +359,10 @@ module.exports = {
   queryOrder,
   refund,
   verifyCallback,
-  // 内部工具,便于测试
+  // 测试用 hooks
   _sign: sign,
+  _verify: verify,
+  _resetTokenCache,
   _config: config,
+  _isoWithOffset: isoWithOffset,
 };

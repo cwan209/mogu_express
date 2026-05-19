@@ -1457,6 +1457,54 @@ test('createOrder 拒绝过期 coupon → code 9', async () => {
   assert.match(thrown.message, /优惠券/);
 });
 
+// ── HuePay SDK 单元测试(_lib 直接 import,不走 cf shim)──
+
+test('huepay sign roundtrip — MD5HEX(body+secret)', async () => {
+  const huepay = require(path.join(cfRoot, '_lib/huepay/index.js'));
+  const body = JSON.stringify({ a: 1, b: 'x' });
+  const secret = 'TEST_SECRET';
+  const expected = require('crypto').createHash('md5').update(body + secret, 'utf8').digest('hex');
+  assert.equal(huepay._sign(body, secret), expected);
+  assert.equal(huepay._verify(body, expected, secret), true);
+  assert.equal(huepay._verify(body, 'wrong', secret), false);
+  assert.equal(huepay._verify(body + 'tamper', expected, secret), false);
+});
+
+test('huepay verifyCallback envelope — stub mode + __stub flag', async () => {
+  const huepay = require(path.join(cfRoot, '_lib/huepay/index.js'));
+  const r = huepay.verifyCallback({
+    rawBody: '{"__stub":true,"transactionOrderId":"T1","status":"SUCCEED","amount":"100"}',
+    headerSignature: 'whatever',
+    parsed: { __stub: true, transactionOrderId: 'T1', status: 'SUCCEED', amount: '100' },
+  });
+  assert.equal(r.valid, true);
+  assert.equal(r.outTradeNo, 'T1');
+});
+
+test('huepay createOrder stub 返 payParams with __stub flag', async () => {
+  const huepay = require(path.join(cfRoot, '_lib/huepay/index.js'));
+  const r = await huepay.createOrder({ outTradeNo: 'TRADE_T1', amount: 100, body: 'test', openid: 'oXXX' });
+  assert.equal(r.payParams.__stub, true);
+  assert.ok(r.payParams.nonceStr);
+  assert.ok(r.payParams.package.includes('STUB'));
+});
+
+test('huepay sign — 输出 lowercase hex 32 char (匹配 Java DigestUtils.md5Hex)', async () => {
+  const huepay = require(path.join(cfRoot, '_lib/huepay/index.js'));
+  const sig = huepay._sign('hello', 'world');
+  assert.equal(sig, sig.toLowerCase());
+  assert.equal(sig.length, 32);
+  assert.match(sig, /^[0-9a-f]{32}$/);
+});
+
+test('huepay token cache — stub 模式连续两次 createOrder 不抛', async () => {
+  const huepay = require(path.join(cfRoot, '_lib/huepay/index.js'));
+  huepay._resetTokenCache();
+  await huepay.createOrder({ outTradeNo: 'TRADE_T2', amount: 100, body: 'test', openid: 'oXXX' });
+  // 第二次:stub 模式 getToken 每次新发一个 STUB_TOKEN(stub 不走缓存),只要不抛即可
+  await huepay.createOrder({ outTradeNo: 'TRADE_T3', amount: 100, body: 'test', openid: 'oXXX' });
+});
+
 // ---- 5. Run ----
 console.log(`\nmogu_express test-shim — ${tests.length} tests\n`);
 runAll().catch((err) => {
