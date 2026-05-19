@@ -75,6 +75,42 @@
 - [x] **尾款 summary 页**(`f909cd9`):新页 `/pending-shipping`(Card 列表 + 顶部 summary 横条 + 每单立即支付按钮)。PendingOrderBanner 多笔跳转改成 `/pending-shipping`,不再混在订单页。
 - [x] **我的页"优惠券"入口**(随优惠券 `aea916b`)
 
+### ⏸️ HuePay 真接入 — 等凭证(2026-05-19 客户端代码已对齐文档 `fc56890`)
+
+> 代码全套已按 2025.10 HuePay 文档重写:`gw.huepay.com.au/api` + MD5HEX 签名 + camelCase + 2-stage JWT token cache + 73 test-shim passing。
+> staging 仍 HUEPAY_STUB=1,业务流走 stub 不受影响。
+
+**等 HuePay 业务对接人发的凭证 + 信息**:
+- `accessCode`(32 字符,X-AccessCode)
+- `secretKey`(2048 字符,X-SecretKey,亦用作签名密钥)
+- 凭证分两套:UAT + Prod
+- 「查询订单」和「申请退款」endpoint 真实路径(代码当前猜的是 `/acquire/payment/query` 和 `/acquire/payment/refund`,UAT 跑会暴露 404)
+- `nextAction.sdkData` 是否含 `signType` 字段(代码默认 `'RSA'`)
+
+**收到 UAT 凭证后**(~30 min):
+1. `deploy/.env` 加 4 个 env vars + 重启 api 容器:
+   ```bash
+   HUEPAY_STUB=0
+   HUEPAY_ENV=uat
+   HUEPAY_ACCESS_CODE=<32 char>
+   HUEPAY_SECRET_KEY=<2048 char>
+   HUEPAY_NOTIFY_URL=https://api-staging.moguexpress.com/cloud/payCallback
+   ssh ubuntu@VPS 'cd /opt/mogu_express && sudo docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d'
+   ```
+2. 微信里登 Luke 账号 → 下单 → 确认 wx.requestPayment 弹真支付框(测试通道)→ 完成 → 看 payCallback 落 `pay_logs`,验签通过,订单变 paid。
+3. 跑一次 `/admin/processRefund` 验退款 path 对不对 — 若 404 改成 HuePay 给的真路径。
+4. 跑 `queryHuepayOrder` cf 验查单 path — 同上。
+5. `docs/risks.md` 关 #3(HuePay 假回调风险) — 注上 UAT E2E 跑过的日期。
+
+**UAT 跑稳后切 Prod**(~15 min):
+1. `deploy/.env.prod` 同样 4 个 var,把 ENV=prod + 真 prod 凭证。
+2. `HUEPAY_NOTIFY_URL=https://api.moguexpress.com/cloud/payCallback`(prod 域名)。
+3. 前 7 天密切看 `pay_logs` 集合,有 `bad_sign` / `amount_mismatch` / `ship_amount_mismatch` 立刻告警。
+
+**注**:HuePay 的 `notificationUrl` **必须公网可达 HTTPS**,且 staging.* 跟 prod 走不同回调地址 — 避免 UAT 数据污染 prod 订单。
+
+---
+
 ### Sprint 3(P2 后续,~1 天)— admin 加强
 
 - [ ] **批量创建商品(Excel)**(~半天)
